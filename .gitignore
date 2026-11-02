@@ -1,0 +1,21 @@
+# Environments
+.env.local
+
+# Browser test caches
+scratch/edge_*
+scratch/edge_screenshot_test/
+scratch/edge_whiteboard_test/
+
+# Python cache & logs
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Databases
+*.sqlite
+*.db

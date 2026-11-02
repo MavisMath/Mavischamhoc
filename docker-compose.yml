@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  padlet-mathboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: padlet_mathboard_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "8765:8765"
+    env_file:
+      - .env
+    environment:
+      - VITE_GEMINI_API_KEY=${VITE_GEMINI_API_KEY}
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
+    volumes:
+      - ./padlet_collab.sqlite:/app/padlet_collab.sqlite
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/react_geometry_app.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
