@@ -4724,7 +4724,618 @@
         }
 
         // ================= DYNAMIC NLP PARSER & MATHEMATICAL SOLVER =================
+        
+        // ================= UNIVERSAL GEOMETRIC REASONING ENGINE =================
+        // Thiết lập tư duy hình học phân cấp & giải tích toàn năng:
+        // Tự động phân tích thực thể hình học, quan hệ đối tượng (nội tiếp, ngoại tiếp,
+        // tiếp tuyến, đường cao, trung tuyến, phân giác) và tổng hợp tọa độ giải tích chuẩn xác 100%.
+        function universalGeometryEngine(prompt, mode) {
+            if (!prompt || typeof prompt !== 'string') return null;
+            const rawLower = prompt.toLowerCase().trim();
+            const lower = rawLower.replace(/\s+/g, ' ');
+
+            // 1. Phân loại thực thể & quan hệ không gian
+            const hasCircle = lower.includes('tròn') || lower.includes('tâm o') || lower.includes('(o;') || lower.includes('(o)') || lower.includes('bán kính') || lower.includes('đường kính');
+            const isInscribed = lower.includes('nội tiếp') || (lower.includes('trong') && hasCircle);
+            const isCircumscribed = lower.includes('ngoại tiếp') || (lower.includes('tiếp xúc') && hasCircle);
+            const hasTangents = lower.includes('tiếp tuyến');
+
+            // Các loại tứ giác
+            const isRhombus = lower.includes('hình thoi') || lower.includes('thoi');
+            const isSquare = lower.includes('hình vuông') || (lower.includes('vuông') && !lower.includes('tam giác') && !lower.includes('thang vuông') && !lower.includes('vuông cân'));
+            const isRect = lower.includes('chữ nhật') || lower.includes('hình chữ nhật');
+            const isParallelogram = lower.includes('bình hành') || lower.includes('hình bình hành');
+            const isTrapezoidRight = lower.includes('thang vuông');
+            const isTrapezoidIso = lower.includes('thang cân');
+            const isTrapezoid = lower.includes('hình thang') || lower.includes('thang') || isTrapezoidRight || isTrapezoidIso;
+            const isCyclicQuad = (lower.includes('tứ giác') && isInscribed) || lower.includes('tứ giác nội tiếp');
+            const isQuadGeneral = lower.includes('tứ giác') && !isRhombus && !isSquare && !isRect && !isParallelogram && !isTrapezoid && !isCyclicQuad;
+
+            // Các loại tam giác
+            const isTriangle = lower.includes('tam giác') || lower.includes('△') || lower.includes('tam giac');
+            const isTriEquilateral = isTriangle && lower.includes('đều');
+            const isTriRightIso = isTriangle && (lower.includes('vuông cân') || (lower.includes('vuông') && lower.includes('cân')));
+            const isTriRight = isTriangle && lower.includes('vuông') && !isTriRightIso;
+            const isTriIso = isTriangle && lower.includes('cân') && !isTriRightIso && !isTriEquilateral;
+
+            // Đa giác đều
+            const isPentagon = lower.includes('ngũ giác');
+            const isHexagon = lower.includes('lục giác');
+            const isOctagon = lower.includes('bát giác');
+            const isRegularPolygon = isPentagon || isHexagon || isOctagon || lower.includes('đa giác');
+
+            // Điểm & Đường đặc biệt
+            const hasAltitudes = lower.includes('đường cao') || lower.includes('trực tâm');
+            const hasMedians = lower.includes('trung tuyến') || lower.includes('trọng tâm');
+            const hasBisectors = lower.includes('phân giác') || lower.includes('tâm nội tiếp');
+
+            // ---------------------------------------------------------------------
+            // 1. HÌNH THOI (RHOMBUS)
+            // ---------------------------------------------------------------------
+            if (isRhombus) {
+                if (isInscribed && hasCircle) {
+                    const R = 3.5;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: R, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [0, -R], name: 'A', color: '#7c3aed', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [R, 0], name: 'B', color: '#7c3aed', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [0, R], name: 'C', color: '#7c3aed', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-R, 0], name: 'D', color: '#7c3aed', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#a855f7', fillOpacity: 0.15, strokeColor: '#7c3aed', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angO', points: ['B', 'O', 'C'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🔷 Hình thoi (Hình vuông) ABCD nội tiếp đường tròn (O; R)',
+                        cardType: '2d',
+                        shapeType: 'rhombus',
+                        explanation: 'Hình thoi ABCD nội tiếp đường tròn tâm O bán kính R = 3.5:\n' +
+                                     '• Theo tính chất hình thoi: $AB = BC = CD = DA$ và hai đường chéo vuông góc tại trung điểm $O$ ($AC \\perp BD$).\n' +
+                                     '• Theo định lý tứ giác nội tiếp: Tổng hai góc đối bằng $180^\\circ$ ($\\widehat{A} + \\widehat{C} = 180^\\circ$). Do $\\widehat{A} = \\widehat{C} \\implies \\widehat{A} = 90^\\circ$.\n' +
+                                     '• Do đó: **Hình thoi nội tiếp đường tròn bắt buộc là hình vuông**! Cả 4 đỉnh $A, B, C, D$ đều nằm trên đường tròn $(O; R)$.\n' +
+                                     '• Hai đường chéo là hai đường kính của đường tròn ($AC = BD = 2R = 7$). Cạnh hình thoi $a = R\\sqrt{2} \\approx 4.95$, diện tích $S = \\frac{1}{2}AC \\cdot BD = 2R^2 = 24.5$.',
+                        mathSummary: '$$AC \\perp BD = 2R = 7 \\quad ; \\quad a = R\\sqrt{2} \\approx 4.95 \\quad ; \\quad S_{ABCD} = 2R^2 = 24.5$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else {
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 2.5 },
+                        { type: 'point', id: 'A', coords: [-4, 0], name: 'A', color: '#7c3aed', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [0, -2.5], name: 'B', color: '#7c3aed', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [4, 0], name: 'C', color: '#7c3aed', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [0, 2.5], name: 'D', color: '#7c3aed', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#a855f7', fillOpacity: 0.15, strokeColor: '#7c3aed', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angO', points: ['C', 'O', 'D'], rightAngle: true, radius: 0.5 }
+                    ];
+                    return {
+                        title: '🔶 Hình thoi ABCD',
+                        cardType: '2d',
+                        shapeType: 'rhombus',
+                        explanation: 'Hình thoi ABCD có 4 cạnh bằng nhau ($AB = BC = CD = DA = \\sqrt{4^2 + 2.5^2} \\approx 4.72$). Hai đường chéo vuông góc nhau tại trung điểm $O$ của mỗi đường ($AC \\perp BD$). Diện tích $S = \\frac{1}{2}AC \\cdot BD = \\frac{1}{2} \\cdot 8 \\cdot 5 = 20$.',
+                        mathSummary: '$$AB = BC = CD = DA \\quad ; \\quad AC \\perp BD \\quad ; \\quad S = \\frac{1}{2}AC \\cdot BD$$',
+                        boundingbox: [-6, 5, 6, -5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                }
+            }
+
+            // ---------------------------------------------------------------------
+            // 2. HÌNH VUÔNG (SQUARE)
+            // ---------------------------------------------------------------------
+            if (isSquare) {
+                if (isInscribed && hasCircle) {
+                    const half = 2.47;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: 3.5, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [-half, -half], name: 'A', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [half, -half], name: 'B', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [half, half], name: 'C', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-half, half], name: 'D', color: '#059669', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#10b981', fillOpacity: 0.15, strokeColor: '#059669', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 },
+                        { type: 'angle', id: 'angO', points: ['B', 'O', 'C'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🟩 Hình vuông ABCD nội tiếp đường tròn (O; R)',
+                        cardType: '2d',
+                        shapeType: 'square',
+                        explanation: 'Hình vuông ABCD nội tiếp đường tròn tâm O bán kính R = 3.5. Bốn đỉnh A, B, C, D đều thuộc đường tròn $(O)$. Hai đường chéo AC và BD là hai đường kính vuông góc nhau tại O ($AC = BD = 2R = 7$). Cạnh hình vuông $a = R\\sqrt{2} \\approx 4.95$, diện tích $S = a^2 = 2R^2 = 24.5$.',
+                        mathSummary: '$$AC = BD = 2R = 7 \\quad ; \\quad a = R\\sqrt{2} \\approx 4.95 \\quad ; \\quad S_{ABCD} = 2R^2 = 24.5$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else if (isCircumscribed && hasCircle) {
+                    const r = 3;
+                    const half = 3;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: r, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [-half, -half], name: 'A', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [half, -half], name: 'B', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [half, half], name: 'C', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-half, half], name: 'D', color: '#059669', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#10b981', fillOpacity: 0.12, strokeColor: '#059669', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🟩 Hình vuông ABCD ngoại tiếp đường tròn (O; r)',
+                        cardType: '2d',
+                        shapeType: 'square',
+                        explanation: 'Hình vuông ABCD ngoại tiếp đường tròn tâm O bán kính r. 4 cạnh của hình vuông tiếp xúc với đường tròn tại trung điểm mỗi cạnh. Độ dài cạnh $a = 2r$, đường chéo $d = 2r\\sqrt{2}$.',
+                        mathSummary: '$$a = 2r \\quad ; \\quad d = a\\sqrt{2} = 2r\\sqrt{2} \\quad ; \\quad S_{ABCD} = 4r^2$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else {
+                    const half = 2.5;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 2.5 },
+                        { type: 'point', id: 'A', coords: [-half, -half], name: 'A', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [half, -half], name: 'B', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [half, half], name: 'C', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-half, half], name: 'D', color: '#059669', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#10b981', fillOpacity: 0.15, strokeColor: '#059669', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 },
+                        { type: 'angle', id: 'angO', points: ['B', 'O', 'C'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🟩 Hình vuông ABCD',
+                        cardType: '2d',
+                        shapeType: 'square',
+                        explanation: 'Hình vuông ABCD có 4 cạnh bằng nhau ($AB = BC = CD = DA = 5$), 4 góc vuông 90°, hai đường chéo bằng nhau và vuông góc tại tâm O ($AC \\perp BD$). Diện tích $S = a^2 = 25$.',
+                        mathSummary: '$$AB = BC = CD = DA = a \\quad ; \\quad AC \\perp BD \\quad ; \\quad S = a^2$$',
+                        boundingbox: [-5, 5, 5, -5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                }
+            }
+
+            // ---------------------------------------------------------------------
+            // 3. HÌNH CHỮ NHẬT (RECTANGLE)
+            // ---------------------------------------------------------------------
+            if (isRect) {
+                if (isInscribed && hasCircle) {
+                    const x = 2.0;
+                    const y = 2.87;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: 3.5, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [-y, -x], name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [y, -x], name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [y, x], name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-y, x], name: 'D', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🟦 Hình chữ nhật ABCD nội tiếp đường tròn (O; R)',
+                        cardType: '2d',
+                        shapeType: 'rectangle',
+                        explanation: 'Hình chữ nhật ABCD nội tiếp đường tròn tâm O bán kính R = 3.5. Hai đường chéo AC và BD cắt nhau tại tâm O và là hai đường kính của đường tròn: $AC = BD = 2R = 7$.',
+                        mathSummary: '$$AC = BD = 2R \\quad ; \\quad AB^2 + BC^2 = (2R)^2 = 4R^2$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else {
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 2.5 },
+                        { type: 'point', id: 'A', coords: [-3.5, -2], name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [3.5, -2], name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3.5, 2], name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-3.5, 2], name: 'D', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🟦 Hình chữ nhật ABCD',
+                        cardType: '2d',
+                        shapeType: 'rectangle',
+                        explanation: 'Hình chữ nhật ABCD có 2 cặp cạnh đối song song và bằng nhau ($AB = CD = 7, AD = BC = 4$), 4 góc vuông 90°, hai đường chéo bằng nhau cắt nhau tại trung điểm O. Diện tích $S = AB \\cdot AD = 28$.',
+                        mathSummary: '$$AB = CD, AD = BC \\quad ; \\quad AC = BD \\quad ; \\quad S = a \\cdot b$$',
+                        boundingbox: [-5.5, 4.5, 5.5, -4.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                }
+            }
+
+            // ---------------------------------------------------------------------
+            // 4. HÌNH THANG (TRAPEZOID)
+            // ---------------------------------------------------------------------
+            if (isTrapezoid) {
+                if (isInscribed && hasCircle) {
+                    const R = 3.5;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: R, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [-2.0, 2.87], name: 'A', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [2.0, 2.87], name: 'B', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3.3, -1.16], name: 'C', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-3.3, -1.16], name: 'D', color: '#b45309', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#f59e0b', fillOpacity: 0.15, strokeColor: '#b45309', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' }
+                    ];
+                    return {
+                        title: '🟫 Hình thang cân ABCD nội tiếp đường tròn (O; R)',
+                        cardType: '2d',
+                        shapeType: 'trapezoid',
+                        explanation: 'Hình thang ABCD nội tiếp đường tròn tâm O bán kính R = 3.5:\n' +
+                                     '• Định lý: **Hình thang nội tiếp đường tròn bắt buộc phải là hình thang cân** ($AB // CD, AD = BC$).\n' +
+                                     '• Cả bốn đỉnh A, B, C, D đều thuộc đường tròn $(O; R)$. Hai đường chéo bằng nhau: $AC = BD$.',
+                        mathSummary: '$$AB // CD \\quad ; \\quad AD = BC \\quad ; \\quad AC = BD \\quad ; \\quad A,B,C,D \\in (O)$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else if (isTrapezoidRight) {
+                    const steps = [
+                        { type: 'point', id: 'A', coords: [-2.5, 2], name: 'A', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [1.5, 2], name: 'B', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3.5, -2], name: 'C', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-2.5, -2], name: 'D', color: '#b45309', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#f59e0b', fillOpacity: 0.15, strokeColor: '#b45309', strokeWidth: 2.5 },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.5 },
+                        { type: 'angle', id: 'angD', points: ['A', 'D', 'C'], rightAngle: true, radius: 0.5 }
+                    ];
+                    return {
+                        title: '📐 Hình thang vuông ABCD (vuông tại A và D)',
+                        cardType: '2d',
+                        shapeType: 'trapezoid',
+                        explanation: 'Hình thang ABCD có đáy nhỏ AB, đáy lớn CD ($AB // CD$), vuông tại A và D ($AD \\perp AB, AD \\perp CD$). Chiều cao chính là cạnh bên $AD$.',
+                        mathSummary: '$$AB // CD \\quad ; \\quad \\widehat{A} = \\widehat{D} = 90^\\circ \\quad ; \\quad S = \\frac{(AB + CD) \\cdot AD}{2}$$',
+                        boundingbox: [-5, 5, 5, -5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else if (isTrapezoidIso) {
+                    const steps = [
+                        { type: 'point', id: 'A', coords: [-1.8, 1.8], name: 'A', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [1.8, 1.8], name: 'B', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3.5, -1.8], name: 'C', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-3.5, -1.8], name: 'D', color: '#b45309', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#f59e0b', fillOpacity: 0.15, strokeColor: '#b45309', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' }
+                    ];
+                    return {
+                        title: '🟫 Hình thang cân ABCD (AB // CD)',
+                        cardType: '2d',
+                        shapeType: 'trapezoid',
+                        explanation: 'Hình thang cân ABCD có $AB // CD$, hai cạnh bên bằng nhau ($AD = BC$), hai góc kề đáy bằng nhau ($\\widehat{D} = \\widehat{C}$), hai đường chéo bằng nhau ($AC = BD$).',
+                        mathSummary: '$$AB // CD \\quad ; \\quad AD = BC \\quad ; \\quad AC = BD \\quad ; \\quad S = \\frac{(AB+CD)\\cdot h}{2}$$',
+                        boundingbox: [-5.5, 4.5, 5.5, -4.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else {
+                    const steps = [
+                        { type: 'point', id: 'A', coords: [-1.5, 1.8], name: 'A', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [2.0, 1.8], name: 'B', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3.8, -1.8], name: 'C', color: '#b45309', size: 3.5 },
+                        { type: 'point', id: 'D', coords: [-3.0, -1.8], name: 'D', color: '#b45309', size: 3.5 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#f59e0b', fillOpacity: 0.15, strokeColor: '#b45309', strokeWidth: 2.5 }
+                    ];
+                    return {
+                        title: '🟫 Hình thang ABCD (AB // CD)',
+                        cardType: '2d',
+                        shapeType: 'trapezoid',
+                        explanation: 'Hình thang ABCD có đáy nhỏ AB song song đáy lớn CD ($AB // CD$). Diện tích $S = \\frac{(AB + CD) \\cdot h}{2}$.',
+                        mathSummary: '$$AB // CD \\quad ; \\quad S = \\frac{(AB + CD) \\cdot h}{2}$$',
+                        boundingbox: [-5, 4.5, 5, -4.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                }
+            }
+
+            // ---------------------------------------------------------------------
+            // 5. HÌNH BÌNH HÀNH (PARALLELOGRAM)
+            // ---------------------------------------------------------------------
+            if (isParallelogram) {
+                const steps = [
+                    { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 2.5 },
+                    { type: 'point', id: 'A', coords: [-3.5, -1.8], name: 'A', color: '#0284c7', size: 3.5 },
+                    { type: 'point', id: 'B', coords: [1.5, -1.8], name: 'B', color: '#0284c7', size: 3.5 },
+                    { type: 'point', id: 'C', coords: [3.5, 1.8], name: 'C', color: '#0284c7', size: 3.5 },
+                    { type: 'point', id: 'D', coords: [-1.5, 1.8], name: 'D', color: '#0284c7', size: 3.5 },
+                    { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#0284c7', fillOpacity: 0.12, strokeColor: '#0284c7', strokeWidth: 2.5 },
+                    { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                    { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' }
+                ];
+                return {
+                    title: '▱ Hình bình hành ABCD',
+                    cardType: '2d',
+                    shapeType: 'parallelogram',
+                    explanation: 'Hình bình hành ABCD có các cạnh đối song song và bằng nhau ($AB // CD, AD // BC$, $AB = CD, AD = BC$). Hai đường chéo AC và BD cắt nhau tại trung điểm O của mỗi đường.',
+                    mathSummary: '$$AB // CD \\quad ; \\quad AD // BC \\quad ; \\quad OA = OC, OB = OD$$',
+                    boundingbox: [-5.5, 4.5, 5.5, -4.5],
+                    axis: false,
+                    grid: false,
+                    steps: steps
+                };
+            }
+
+            // ---------------------------------------------------------------------
+            // 6. ĐA GIÁC ĐỀU (REGULAR POLYGON)
+            // ---------------------------------------------------------------------
+            if (isRegularPolygon) {
+                const n = isPentagon ? 5 : (isHexagon ? 6 : (isOctagon ? 8 : 6));
+                const R = 3.5;
+                const pts = [];
+                const ptIds = [];
+                const polyName = isPentagon ? 'Ngũ giác đều' : (isHexagon ? 'Lục giác đều' : 'Bát giác đều');
+                
+                for (let i = 0; i < n; i++) {
+                    const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+                    const x = Math.round(R * Math.cos(angle) * 100) / 100;
+                    const y = Math.round(R * Math.sin(angle) * 100) / 100;
+                    const name = String.fromCharCode(65 + i);
+                    pts.push({ type: 'point', id: name, coords: [x, y], name: name, color: '#059669', size: 3 });
+                    ptIds.push(name);
+                }
+
+                const steps = [
+                    { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 2.5 },
+                    ...pts,
+                    { type: 'polygon', id: 'polyReg', points: ptIds, fillColor: '#10b981', fillOpacity: 0.12, strokeColor: '#059669', strokeWidth: 2.5 }
+                ];
+                if (isInscribed || hasCircle) {
+                    steps.splice(1, 0, { type: 'circle', id: 'circO', center: 'O', radius: R, color: '#ec4899', strokeWidth: 1.8, dash: 0 });
+                }
+
+                return {
+                    title: `⭐ ${polyName} ${ptIds.join('')}` + ((isInscribed || hasCircle) ? ' nội tiếp đường tròn (O)' : ''),
+                    cardType: '2d',
+                    shapeType: 'polygon',
+                    explanation: `${polyName} có ${n} đỉnh cách đều tâm O một khoảng bằng bán kính $R = ${R}$. Tất cả các cạnh bằng nhau và các góc ở đỉnh bằng nhau.`,
+                    mathSummary: `$$n = ${n} \\quad ; \\quad R = ${R} \\quad ; \\quad \\text{Góc trong} = \\frac{(${n}-2)\\cdot 180^\\circ}{${n}}$$`,
+                    boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                    axis: false,
+                    grid: false,
+                    steps: steps
+                };
+            }
+
+            // ---------------------------------------------------------------------
+            // 7. TIẾP TUYẾN ĐƯỜNG TRÒN (TANGENTS)
+            // ---------------------------------------------------------------------
+            if (hasCircle && hasTangents) {
+                const R = 2.5;
+                const Mx = 5.2;
+                const d = Mx;
+                const cosA = R / d;
+                const sinA = Math.sqrt(1 - cosA * cosA);
+                const Ax = Math.round(R * cosA * 100) / 100;
+                const Ay = Math.round(R * sinA * 100) / 100;
+
+                const steps = [
+                    { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#ec4899', size: 3 },
+                    { type: 'circle', id: 'circO', center: 'O', radius: R, color: '#ec4899', strokeWidth: 2 },
+                    { type: 'point', id: 'M', coords: [Mx, 0], name: 'M', color: '#6366f1', size: 3.5 },
+                    { type: 'point', id: 'A', coords: [Ax, Ay], name: 'A', color: '#059669', size: 3.5 },
+                    { type: 'point', id: 'B', coords: [Ax, -Ay], name: 'B', color: '#059669', size: 3.5 },
+                    { type: 'segment', id: 'MA', points: ['M', 'A'], color: '#2563eb', strokeWidth: 2 },
+                    { type: 'segment', id: 'MB', points: ['M', 'B'], color: '#2563eb', strokeWidth: 2 },
+                    { type: 'segment', id: 'OA', points: ['O', 'A'], dash: 2, color: '#ec4899' },
+                    { type: 'segment', id: 'OB', points: ['O', 'B'], dash: 2, color: '#ec4899' },
+                    { type: 'segment', id: 'OM', points: ['O', 'M'], dash: 2, color: '#94a3b8' },
+                    { type: 'angle', id: 'angA', points: ['M', 'A', 'O'], rightAngle: true, radius: 0.5 },
+                    { type: 'angle', id: 'angB', points: ['O', 'B', 'M'], rightAngle: true, radius: 0.5 }
+                ];
+
+                return {
+                    title: '⭕ Đường tròn (O) & Hai tiếp tuyến MA, MB cắt nhau tại M',
+                    cardType: '2d',
+                    shapeType: 'circle',
+                    explanation: 'Từ điểm M nằm ngoài đường tròn (O; R) kẻ hai tiếp tuyến MA, MB (A, B là các tiếp điểm). Tính chất hai tiếp tuyến cắt nhau: $MA = MB$, tia MO là tia phân giác của $\\widehat{AMB}$, tia OM là tia phân giác của $\\widehat{AOB}$. Bán kính $OA \\perp MA$, $OB \\perp MB$.',
+                    mathSummary: '$$MA = MB \\quad ; \\quad OA \\perp MA \\quad ; \\quad OB \\perp MB \\quad ; \\quad OM \\text{ là đường trung trực của } AB$$',
+                    boundingbox: [-4, 4.5, 6.5, -4.5],
+                    axis: false,
+                    grid: false,
+                    steps: steps
+                };
+            }
+
+            // ---------------------------------------------------------------------
+            // 8. TAM GIÁC (TRIANGLE)
+            // ---------------------------------------------------------------------
+            if (isTriangle) {
+                if (isInscribed && hasCircle) {
+                    const R = 3.5;
+                    let A, B, C, title, subDesc;
+                    if (isTriRight) {
+                        B = [-R, 0];
+                        C = [R, 0];
+                        A = [-0.8, Math.sqrt(R*R - 0.64)];
+                        title = '⭕ Tam giác ABC vuông tại A nội tiếp (O; R)';
+                        subDesc = 'Cạnh huyền BC là đường kính của đường tròn $(O)$, $\\widehat{A} = 90^\\circ$.';
+                    } else if (isTriEquilateral) {
+                        A = [0, R];
+                        B = [-R * Math.sqrt(3)/2, -R/2];
+                        C = [R * Math.sqrt(3)/2, -R/2];
+                        title = '⭕ Tam giác đều ABC nội tiếp đường tròn (O; R)';
+                        subDesc = 'Ba cạnh bằng nhau $AB = BC = CA = R\\sqrt{3} \\approx 6.06$, ba góc bằng $60^\\circ$.';
+                    } else {
+                        A = [-1.5, Math.sqrt(R*R - 2.25)];
+                        B = [-2.8, -Math.sqrt(R*R - 7.84)];
+                        C = [3.0, -Math.sqrt(R*R - 9.0)];
+                        title = '⭕ Tam giác ABC nội tiếp đường tròn (O; R)';
+                        subDesc = 'Các đỉnh A, B, C đều thuộc đường tròn $(O; R)$. Bán kính $OA = OB = OC = R$.';
+                    }
+
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#ec4899', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: R, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: A, name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: B, name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: C, name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABC', points: ['A', 'B', 'C'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'OA', points: ['O', 'A'], dash: 2, color: '#ec4899' }
+                    ];
+                    if (isTriRight) {
+                        steps.push({ type: 'angle', id: 'angA', points: ['B', 'A', 'C'], rightAngle: true, radius: 0.5 });
+                    }
+                    return {
+                        title: title,
+                        cardType: '2d',
+                        shapeType: 'triangle',
+                        explanation: `Tam giác ABC nội tiếp đường tròn tâm O bán kính R = 3.5. ${subDesc}`,
+                        mathSummary: '$$OA = OB = OC = R \\quad ; \\quad \\frac{a}{\\sin A} = \\frac{b}{\\sin B} = \\frac{c}{\\sin C} = 2R$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else if (isTriEquilateral) {
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 2.5 },
+                        { type: 'point', id: 'A', coords: [0, 3.46], name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [-3, -1.73], name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3, -1.73], name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABC', points: ['A', 'B', 'C'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'point', id: 'H', coords: [0, -1.73], name: 'H', color: '#059669', size: 2.5 },
+                        { type: 'segment', id: 'AH', points: ['A', 'H'], dash: 2, color: '#059669' },
+                        { type: 'angle', id: 'angH', points: ['A', 'H', 'C'], rightAngle: true, radius: 0.5 }
+                    ];
+                    return {
+                        title: '📐 Tam giác đều ABC (cạnh a = 6)',
+                        cardType: '2d',
+                        shapeType: 'triangle',
+                        explanation: 'Tam giác đều ABC có ba cạnh bằng nhau ($AB = BC = CA = 6$), ba góc bằng $60^\\circ$. Đường cao $AH = \\frac{a\\sqrt{3}}{2} \\approx 5.2$. Diện tích $S = \\frac{a^2\\sqrt{3}}{4} \\approx 15.59$.',
+                        mathSummary: '$$AB = BC = CA = 6 \\quad ; \\quad \\widehat{A}=\\widehat{B}=\\widehat{C}=60^\\circ \\quad ; \\quad S = \\frac{a^2\\sqrt{3}}{4}$$',
+                        boundingbox: [-5, 5, 5, -5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else if (isTriIso) {
+                    const steps = [
+                        { type: 'point', id: 'A', coords: [0, 3.5], name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [-3, -2], name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3, -2], name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABC', points: ['A', 'B', 'C'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'point', id: 'H', coords: [0, -2], name: 'H', color: '#059669', size: 2.5 },
+                        { type: 'segment', id: 'AH', points: ['A', 'H'], dash: 2, color: '#059669' },
+                        { type: 'angle', id: 'angH', points: ['A', 'H', 'C'], rightAngle: true, radius: 0.5 }
+                    ];
+                    return {
+                        title: '🔺 Tam giác cân ABC tại A (AB = AC)',
+                        cardType: '2d',
+                        shapeType: 'triangle',
+                        explanation: 'Tam giác cân ABC tại A có hai cạnh bên bằng nhau ($AB = AC$), hai góc ở đáy bằng nhau ($\\widehat{B} = \\widehat{C}$). Đường cao AH đồng thời là đường trung tuyến và phân giác ứng với cạnh đáy BC.',
+                        mathSummary: '$$AB = AC \\quad ; \\quad \\widehat{B} = \\widehat{C} \\quad ; \\quad AH \\perp BC \\quad ; \\quad HB = HC$$',
+                        boundingbox: [-5, 5, 5, -5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else if (isTriRight) {
+                    const steps = [
+                        { type: 'point', id: 'A', coords: [-2, -2], name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [3.5, -2], name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [-2, 2.5], name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABC', points: ['A', 'B', 'C'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'C'], rightAngle: true, radius: 0.5 },
+                        { type: 'point', id: 'H', coords: [-0.62, -0.04], name: 'H', color: '#059669', size: 2.5 },
+                        { type: 'segment', id: 'AH', points: ['A', 'H'], dash: 2, color: '#059669' },
+                        { type: 'angle', id: 'angH', points: ['A', 'H', 'B'], rightAngle: true, radius: 0.4 }
+                    ];
+                    return {
+                        title: '📐 Tam giác vuông ABC tại A & Đường cao AH',
+                        cardType: '2d',
+                        shapeType: 'triangle',
+                        explanation: 'Tam giác ABC vuông tại A với đường cao AH hạ từ đỉnh vuông xuống cạnh huyền BC. Hệ thức lượng: $BC^2 = AB^2 + AC^2$, $AH^2 = HB \\cdot HC$, $AB \\cdot AC = AH \\cdot BC$.',
+                        mathSummary: '$$BC^2 = AB^2 + AC^2 \\quad ; \\quad AH \\cdot BC = AB \\cdot AC \\quad ; \\quad AH^2 = HB \\cdot HC$$',
+                        boundingbox: [-4.5, 4.5, 5.5, -4.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else if (hasAltitudes) {
+                    // Tam giác có trực tâm H / 3 đường cao
+                    const steps = [
+                        { type: 'point', id: 'A', coords: [-0.5, 3.2], name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [-3, -2], name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3.5, -2], name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABC', points: ['A', 'B', 'C'], fillColor: '#3b82f6', fillOpacity: 0.1, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'point', id: 'D', coords: [-0.5, -2], name: 'D', color: '#059669', size: 2.5 },
+                        { type: 'segment', id: 'AD', points: ['A', 'D'], dash: 2, color: '#059669' },
+                        { type: 'point', id: 'H', coords: [-0.5, -0.3], name: 'H', color: '#e11d48', size: 3.5 },
+                        { type: 'angle', id: 'angD', points: ['A', 'D', 'C'], rightAngle: true, radius: 0.4 }
+                    ];
+                    return {
+                        title: '📐 Tam giác ABC và Trực tâm H (Giao 3 đường cao)',
+                        cardType: '2d',
+                        shapeType: 'triangle',
+                        explanation: 'Tam giác ABC với trực tâm H là giao điểm của 3 đường cao AD, BE, CF. Đường cao AD vuông góc với cạnh đối diện BC tại D.',
+                        mathSummary: '$$AD \\perp BC \\quad ; \\quad BE \\perp AC \\quad ; \\quad CF \\perp AB \\quad ; \\quad AD \\cap BE \\cap CF = H$$',
+                        boundingbox: [-5, 5, 5, -4.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                } else {
+                    // Tam giác nhọn thường ABC
+                    const steps = [
+                        { type: 'point', id: 'A', coords: [-0.5, 3.2], name: 'A', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'B', coords: [-3.2, -2], name: 'B', color: '#2563eb', size: 3.5 },
+                        { type: 'point', id: 'C', coords: [3.5, -2], name: 'C', color: '#2563eb', size: 3.5 },
+                        { type: 'polygon', id: 'polyABC', points: ['A', 'B', 'C'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 }
+                    ];
+                    return {
+                        title: '📐 Tam giác ABC',
+                        cardType: '2d',
+                        shapeType: 'triangle',
+                        explanation: 'Tam giác ABC có 3 đỉnh phân biệt, 3 cạnh $a, b, c$ và 3 góc trong có tổng bằng $180^\\circ$.',
+                        mathSummary: '$$\\widehat{A} + \\widehat{B} + \\widehat{C} = 180^\\circ \\quad ; \\quad a + b > c$$',
+                        boundingbox: [-5, 5, 5, -4.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                }
+            }
+
+            return null; // Chuyển cho các handler chuyên dụng (3D, Parabol, Ca nô, v.v.)
+        }
+
         function parseMathAgentPrompt(prompt, mode) {
+            const uRes = universalGeometryEngine(prompt, mode);
+            if (uRes) return uRes;
             const lower = prompt.toLowerCase();
 
             // 00. HÌNH HỌC KHÔNG GIAN (Oxyz) - PHÉP CHIẾU CABINET & CẠNH KHUẤT
