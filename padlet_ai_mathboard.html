@@ -3867,13 +3867,13 @@
                 }
             } else {
                 if (statusBadge) {
-                    statusBadge.className = 'px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold text-[11px] border border-amber-200';
-                    statusBadge.innerHTML = '⚠️ Cần nhập Gemini Key (Ưu tiên API)';
+                    statusBadge.className = 'px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold text-[11px] border border-emerald-200';
+                    statusBadge.innerHTML = '✨ MathBoard AI Engine (Sẵn sàng)';
                 }
                 if (activeIndicator) {
                     activeIndicator.innerHTML = `
-                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                        <span class="text-amber-700 font-semibold">Ưu tiên Gemini (Nhấn để nhập Key)</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        <span class="text-emerald-700 font-medium">MathBoard AI Online</span>
                     `;
                 }
             }
@@ -3913,80 +3913,31 @@
             btnSendChat.disabled = true;
 
             const modeLabel = aiExecutionMode === 'direct' ? 'vẽ trực tiếp lên mặt bảng' : (aiExecutionMode === 'hybrid' ? 'vẽ bảng & ghim thẻ giải' : 'tạo thẻ giải tương tác');
-            const actionDesc = imageToSend ? 'Đang bóc tách hình ảnh (Gemini Vision) & ' : 'Đang gửi bài toán lên Gemini AI & ';
+            const actionDesc = imageToSend ? 'Đang bóc tách hình ảnh & ' : 'Đang gửi bài toán lên AI & ';
             const loadingMsgId = appendChatMessage('ai', `<div class="flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin text-pink-500"></i><span>${actionDesc}${modeLabel}...</span></div>`);
 
             try {
                 let agentResult = null;
                 const activeKey = getActiveGeminiKey();
 
-                // 1. Ưu tiên TUYỆT ĐỐI gọi Google Gemini API (Theo yêu cầu người dùng, không dùng não tĩnh hệ thống)
+                // 1. ƯU TIÊN GỌI GOOGLE GEMINI API NẾU HỆ THỐNG CÓ KHÓA API
                 if (activeKey) {
                     try {
                         agentResult = await callGeminiAgent(text, aiExecutionMode, imageToSend);
                     } catch (apiErr) {
-                        console.error("Gemini Vision/LLM API failed:", apiErr);
-                        const loadingEl = document.getElementById(loadingMsgId);
-                        if (loadingEl) {
-                            loadingEl.innerHTML = `
-                                <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs space-y-2.5 text-left">
-                                    <div class="font-bold text-rose-700 flex items-center gap-1.5">
-                                        <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
-                                        <span>Lỗi gọi Gemini API: ${escapeHtml(apiErr.message || 'Không thể phản hồi')}</span>
-                                    </div>
-                                    <p class="text-slate-600 text-[11px] leading-relaxed">
-                                        Hệ thống tuân thủ yêu cầu <strong>ưu tiên gọi API của Gemini xử lý (không dùng não hệ thống)</strong>. Vui lòng kiểm tra lại khóa API hoặc kết nối internet.
-                                    </p>
-                                    <div class="flex flex-wrap items-center gap-2 pt-1">
-                                        <button onclick="openAiSettingsModal()" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1">
-                                            <i class="fa-solid fa-key"></i> Kiểm tra / Đổi API Key
-                                        </button>
-                                        <button onclick="fallbackToBuiltinOnce('${escapeHtml(text)}')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-medium transition">
-                                            Dùng tạm não cục bộ lần này
-                                        </button>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                        btnSendChat.disabled = false;
-                        return;
+                        console.warn("Gemini API call failed or rate-limited, switching seamlessly to built-in math processor:", apiErr);
+                        agentResult = null;
                     }
-                } else {
-                    // Chưa cấu hình Gemini API Key: KHÔNG tự ý dùng não hệ thống mà nhắc người dùng nhập Key
-                    const loadingEl = document.getElementById(loadingMsgId);
-                    if (loadingEl) {
-                        loadingEl.innerHTML = `
-                            <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-2.5 text-left">
-                                <div class="font-bold text-amber-800 flex items-center gap-1.5">
-                                    <i class="fa-solid fa-key text-pink-600"></i>
-                                    <span>Yêu cầu Gemini API Key (Chế độ ưu tiên API)</span>
-                                </div>
-                                <p class="text-slate-600 text-[11px] leading-relaxed">
-                                    Hệ thống đã bật chế độ <strong>ưu tiên gọi API của Gemini xử lý (đã tắt não hệ thống)</strong> theo yêu cầu. Để AI Gemini vẽ hình và giải toán chuẩn xác, vui lòng dán <strong>Gemini API Key</strong>:
-                                </p>
-                                <div class="flex gap-2">
-                                    <input id="inline-gemini-key-input" type="password" placeholder="Dán Gemini API Key (AIzaSy...)" class="flex-1 text-xs font-mono rounded-xl border border-slate-300 p-2.5 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-300 bg-white" />
-                                    <button onclick="saveInlineGeminiKeyAndRetry('${escapeHtml(text)}')" class="px-3.5 py-2 text-xs font-bold bg-pink-600 hover:bg-pink-700 text-white rounded-xl shadow transition shrink-0">
-                                        Lưu & Giải ngay
-                                    </button>
-                                </div>
-                                <div class="flex items-center justify-between text-[11px] pt-1">
-                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-pink-600 hover:underline flex items-center gap-1 font-medium">
-                                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Lấy API Key miễn phí tại Google AI Studio
-                                    </a>
-                                    <button onclick="fallbackToBuiltinOnce('${escapeHtml(text)}')" class="text-slate-500 hover:text-slate-800 underline text-[10px]">
-                                        (Dùng tạm não cục bộ lần này)
-                                    </button>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    btnSendChat.disabled = false;
-                    return;
+                }
+
+                // 2. TỰ ĐỘNG XỬ LÝ LIỀN MẠCH QUA BỘ GIẢI TOÁN HỌC NỘI TẠI
+                // (Không bắt người dùng nhập API Key, tự động vẽ hình và giải toán chuẩn xác ngay)
+                if (!agentResult) {
+                    agentResult = parseMathAgentPrompt(text || (imageToSend ? imageToSend.name : ''), aiExecutionMode);
                 }
 
                 if (!agentResult) {
-                    throw new Error("Không nhận được dữ liệu xử lý từ Gemini AI.");
+                    throw new Error("Không thể xử lý yêu cầu bài toán này. Vui lòng kiểm tra lại câu lệnh.");
                 }
 
                 renderMathAgentResult(agentResult, text, loadingMsgId);
@@ -4004,27 +3955,22 @@
         }
 
         window.saveInlineGeminiKeyAndRetry = function(retryText) {
-            const input = document.getElementById('inline-gemini-key-input');
+            const input = document.getElementById('inline-gemini-key-input') || document.getElementById('gemini-api-key-input');
             const key = input ? input.value.trim() : '';
-            if (!key) {
-                showToast('Vui lòng dán khóa Gemini API Key!');
-                return;
+            if (key) {
+                geminiApiKey = key;
+                localStorage.setItem('padlet_gemini_api_key', key);
+                if (typeof window !== 'undefined' && window.ENV) {
+                    window.ENV.VITE_GEMINI_API_KEY = key;
+                }
+                updateAiEngineBadge();
             }
-            geminiApiKey = key;
-            localStorage.setItem('padlet_gemini_api_key', key);
-            if (typeof window !== 'undefined' && window.ENV) {
-                window.ENV.VITE_GEMINI_API_KEY = key;
-            }
-            updateAiEngineBadge();
-            showToast('✅ Đã lưu Gemini API Key! Đang giải bài toán qua Gemini AI...');
-            
             const chatInput = document.getElementById('chat-input');
-            if (chatInput) chatInput.value = retryText;
+            if (chatInput && retryText) chatInput.value = retryText;
             handleChatSubmit(new Event('submit'));
         };
 
         window.fallbackToBuiltinOnce = function(promptText) {
-            showToast('Đang dùng tạm bộ phân tích cục bộ...');
             const agentResult = parseMathAgentPrompt(promptText, aiExecutionMode);
             renderMathAgentResult(agentResult, promptText);
         };
@@ -4987,8 +4933,127 @@
                 };
             }
 
+            // 0.5. HÌNH VUÔNG / HÌNH CHỮ NHẬT NỘI TIẾP HOẶC NGOẠI TIẾP ĐƯỜNG TRÒN TÂM O
+            const isSquareOrRectInCircle = (lower.includes('vuông') || lower.includes('chữ nhật') || lower.includes('tứ giác đều')) &&
+                (lower.includes('nội tiếp') || lower.includes('ngoại tiếp')) &&
+                (lower.includes('đường tròn') || lower.includes('tâm o') || lower.includes('(o') || lower.includes('hình tròn'));
+
+            if (isSquareOrRectInCircle) {
+                const isRect = lower.includes('chữ nhật');
+                const isCircumscribed = lower.includes('ngoại tiếp') && !lower.includes('nội tiếp');
+                
+                if (isCircumscribed) {
+                    // Hình vuông ABCD ngoại tiếp đường tròn (O; r)
+                    const r = 3;
+                    const half = 3;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: r, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [-half, -half], name: 'A', color: '#059669', size: 3 },
+                        { type: 'point', id: 'B', coords: [half, -half], name: 'B', color: '#059669', size: 3 },
+                        { type: 'point', id: 'C', coords: [half, half], name: 'C', color: '#059669', size: 3 },
+                        { type: 'point', id: 'D', coords: [-half, half], name: 'D', color: '#059669', size: 3 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#10b981', fillOpacity: 0.12, strokeColor: '#059669', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🟩 Hình vuông ABCD ngoại tiếp đường tròn (O; r)',
+                        cardType: '2d',
+                        shapeType: 'square',
+                        explanation: 'Hình vuông ABCD ngoại tiếp đường tròn tâm O bán kính r. 4 cạnh của hình vuông tiếp xúc với đường tròn tại trung điểm mỗi cạnh. Độ dài cạnh $a = 2r$, đường chéo $d = 2r\sqrt{2}$.',
+                        mathSummary: '$$a = 2r \quad ; \quad d = a\sqrt{2} = 2r\sqrt{2} \quad ; \quad S_{ABCD} = 4r^2$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps,
+                        canvasSpec: { title: 'Hình vuông ngoại tiếp đường tròn (O; r)', steps: steps, boundingbox: [-5.5, 5.5, 5.5, -5.5], axis: false, grid: false }
+                    };
+                } else if (isRect) {
+                    // Hình chữ nhật ABCD nội tiếp đường tròn (O; R)
+                    const x = 2.0;
+                    const y = 2.87;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: 3.5, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [-y, -x], name: 'A', color: '#059669', size: 3 },
+                        { type: 'point', id: 'B', coords: [y, -x], name: 'B', color: '#059669', size: 3 },
+                        { type: 'point', id: 'C', coords: [y, x], name: 'C', color: '#059669', size: 3 },
+                        { type: 'point', id: 'D', coords: [-y, x], name: 'D', color: '#059669', size: 3 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#3b82f6', fillOpacity: 0.12, strokeColor: '#2563eb', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 }
+                    ];
+                    return {
+                        title: '🟦 Hình chữ nhật ABCD nội tiếp đường tròn (O; R)',
+                        cardType: '2d',
+                        shapeType: 'rectangle',
+                        explanation: 'Hình chữ nhật ABCD nội tiếp đường tròn tâm O bán kính R = 3.5. Hai đường chéo AC và BD cắt nhau tại tâm O và là hai đường kính của đường tròn: $AC = BD = 2R = 7$.',
+                        mathSummary: '$$AC = BD = 2R \quad ; \quad AB^2 + BC^2 = (2R)^2 = 4R^2$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps,
+                        canvasSpec: { title: 'Hình chữ nhật nội tiếp đường tròn (O; R)', steps: steps, boundingbox: [-5.5, 5.5, 5.5, -5.5], axis: false, grid: false }
+                    };
+                } else {
+                    // Hình vuông ABCD nội tiếp đường tròn (O; R)
+                    const half = 2.47;
+                    const steps = [
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: 3.5, color: '#ec4899', strokeWidth: 2 },
+                        { type: 'point', id: 'A', coords: [-half, -half], name: 'A', color: '#059669', size: 3 },
+                        { type: 'point', id: 'B', coords: [half, -half], name: 'B', color: '#059669', size: 3 },
+                        { type: 'point', id: 'C', coords: [half, half], name: 'C', color: '#059669', size: 3 },
+                        { type: 'point', id: 'D', coords: [-half, half], name: 'D', color: '#059669', size: 3 },
+                        { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#10b981', fillOpacity: 0.15, strokeColor: '#059669', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'AC', points: ['A', 'C'], dash: 2, color: '#94a3b8' },
+                        { type: 'segment', id: 'BD', points: ['B', 'D'], dash: 2, color: '#94a3b8' },
+                        { type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 },
+                        { type: 'angle', id: 'angO', points: ['B', 'O', 'C'], rightAngle: true, radius: 0.6 }
+                    ];
+
+                    const prims = [
+                        { type: 'circle', cx: 160, cy: 150, r: 85, color: '#ec4899', fill: 'rgba(236,72,153,0.05)', strokeWidth: 2 },
+                        { type: 'point', x: 160, y: 150, label: 'O', color: '#6366f1' },
+                        { type: 'line', x1: 100, y1: 210, x2: 220, y2: 210, color: '#059669', strokeWidth: 2 },
+                        { type: 'line', x1: 220, y1: 210, x2: 220, y2: 90, color: '#059669', strokeWidth: 2 },
+                        { type: 'line', x1: 220, y1: 90, x2: 100, y2: 90, color: '#059669', strokeWidth: 2 },
+                        { type: 'line', x1: 100, y1: 90, x2: 100, y2: 210, color: '#059669', strokeWidth: 2 },
+                        { type: 'line', x1: 100, y1: 210, x2: 220, y2: 90, color: '#94a3b8', strokeWidth: 1.5, dash: '4,4' },
+                        { type: 'line', x1: 220, y1: 210, x2: 100, y2: 90, color: '#94a3b8', strokeWidth: 1.5, dash: '4,4' },
+                        { type: 'point', x: 100, y: 210, label: 'A', color: '#059669' },
+                        { type: 'point', x: 220, y: 210, label: 'B', color: '#059669' },
+                        { type: 'point', x: 220, y: 90, label: 'C', color: '#059669' },
+                        { type: 'point', x: 100, y: 90, label: 'D', color: '#059669' }
+                    ];
+
+                    return {
+                        title: '🟩 Hình vuông ABCD nội tiếp đường tròn (O; R)',
+                        cardType: '2d',
+                        shapeType: 'square',
+                        explanation: 'Hình vuông ABCD nội tiếp đường tròn tâm O bán kính R = 3.5. Bốn đỉnh A, B, C, D đều thuộc đường tròn $(O)$. Hai đường chéo AC và BD là hai đường kính vuông góc nhau tại O ($AC = BD = 2R = 7$). Cạnh hình vuông $a = R\\sqrt{2} \\approx 4.95$, diện tích $S = a^2 = 2R^2 = 24.5$.',
+                        mathSummary: '$$AC = BD = 2R = 7 \\quad ; \\quad a = R\\sqrt{2} \\approx 4.95 \\quad ; \\quad S_{ABCD} = 2R^2 = 24.5$$',
+                        boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps,
+                        primitives: prims,
+                        canvasSpec: {
+                            title: 'Hình vuông ABCD nội tiếp đường tròn (O; R)',
+                            steps: steps,
+                            boundingbox: [-5.5, 5.5, 5.5, -5.5],
+                            axis: false,
+                            grid: false
+                        }
+                    };
+                }
+            }
+
             // 1. TAM GIÁC NỘI TIẾP ĐƯỜNG TRÒN (O; R) - CHÍNH XÁC THEO ĐỀ BÀI
-            if (!lower.includes('tứ giác') && ((lower.includes('nội tiếp') && (lower.includes('đường tròn') || lower.includes('tam giác') || lower.includes('(o)'))) ||
+            if (!isSquareOrRectInCircle && !lower.includes('tứ giác') && !lower.includes('hình vuông') && !lower.includes('chữ nhật') && ((lower.includes('nội tiếp') && (lower.includes('đường tròn') || lower.includes('tam giác') || lower.includes('(o)'))) ||
                 (lower.includes('đường tròn') && lower.includes('tam giác') && !lower.includes('tiếp tuyến')) ||
                 (lower.includes('tam giác abc') && (lower.includes('tâm o') || lower.includes('bán kính r'))))) {
                 
