@@ -700,10 +700,10 @@
                     
                     <div class="flex items-center justify-between mt-2">
                         <div class="flex items-center gap-1.5 text-[11px] text-slate-400">
-                            <span id="active-engine-indicator" class="flex items-center gap-1">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                                <span class="text-slate-600 font-medium">Smart Built-in (Offline)</span>
-                            </span>
+                            <button type="button" onclick="openAiSettingsModal()" id="active-engine-indicator" title="Nhấn để cấu hình Gemini API Key" class="flex items-center gap-1 px-2 py-0.5 rounded-lg hover:bg-slate-100 transition cursor-pointer">
+                                <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                                <span class="text-amber-700 font-semibold">Ưu tiên Gemini (Nhấn để nhập Key)</span>
+                            </button>
                         </div>
                         <button type="submit" id="btn-send-chat" class="px-4 py-2 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition shadow-sm disabled:opacity-50">
                             <span id="btn-send-text">Thực thi vẽ</span>
@@ -812,7 +812,7 @@
                     <div class="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center text-sm">
                         <i class="fa-solid fa-microchip"></i>
                     </div>
-                    <h3 class="font-bold text-slate-800 text-base">Cấu hình Động cơ AI (Engine)</h3>
+                    <h3 class="font-bold text-slate-800 text-base">Cấu hình Động cơ AI (Gemini Priority)</h3>
                 </div>
                 <button onclick="closeAiSettingsModal()" class="w-8 h-8 rounded-full hover:bg-slate-100 text-slate-400 flex items-center justify-center">
                     <i class="fa-solid fa-xmark"></i>
@@ -820,33 +820,43 @@
             </div>
             
             <div class="space-y-4 text-xs">
-                <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <div class="p-3.5 rounded-2xl bg-gradient-to-r from-pink-50 to-rose-50 border border-pink-200/80">
                     <div class="flex items-center justify-between mb-1.5">
-                        <span class="font-bold text-slate-800 text-xs">Trạng thái động cơ:</span>
-                        <span id="ai-engine-status-badge" class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold text-[11px] border border-emerald-200">
-                            🟢 Smart Built-in Engine (Offline)
+                        <span class="font-bold text-slate-800 text-xs">Chế độ hoạt động:</span>
+                        <span id="ai-engine-status-badge" class="px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-800 font-semibold text-[11px] border border-pink-200">
+                            ⚡ Ưu tiên Gemini 2.0 Flash (Online AI)
                         </span>
                     </div>
-                    <p class="text-slate-500 text-[11px] leading-relaxed">
-                        Hệ thống phân tích cú pháp hình học & giải toán đại số cục bộ chạy 100% trên trình duyệt với độ trễ <strong>0ms</strong>, không tốn phí và hoàn toàn không cần API.
+                    <p class="text-slate-600 text-[11px] leading-relaxed">
+                        Hệ thống được thiết lập <strong>ưu tiên gọi API của Google Gemini xử lý</strong> (Gemini 2.0 Flash / 1.5 Flash), loại bỏ hoàn toàn phỏng đoán sai của bộ phân tích cục bộ.
                     </p>
                 </div>
 
                 <div>
-                    <label class="block font-semibold text-slate-700 uppercase mb-1 text-[11px]">
-                        Gemini API Key (Tùy chọn - Không bắt buộc)
-                    </label>
-                    <input id="gemini-api-key-input" type="password" placeholder="Dán Gemini API Key của bạn nếu muốn mở rộng..." class="w-full text-xs font-mono rounded-xl border border-slate-300 p-2.5 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-300">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="block font-semibold text-slate-700 uppercase text-[11px]">
+                            Google Gemini API Key
+                        </label>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-[11px] text-pink-600 hover:underline font-semibold flex items-center gap-1">
+                            <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> Lấy key miễn phí
+                        </a>
+                    </div>
+                    <input id="gemini-api-key-input" type="password" placeholder="Dán Gemini API Key của bạn (AIzaSy...)" class="w-full text-xs font-mono rounded-xl border border-slate-300 p-2.5 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-300">
                     <p class="text-[10px] text-slate-400 mt-1.5">
-                        🔒 Khóa được lưu an toàn trong trình duyệt của bạn (localStorage) và không gửi đi đâu khác. Để trống để sử dụng Động cơ miễn phí có sẵn.
+                        🔒 Khóa được lưu an toàn trong trình duyệt (localStorage) hoặc file <code class="bg-slate-100 px-1 rounded">env.js</code>.
                     </p>
                 </div>
             </div>
 
             <div class="mt-6 flex items-center justify-between">
-                <button type="button" onclick="clearGeminiApiKey()" class="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-xl transition font-medium">
-                    Xóa khóa API
-                </button>
+                <div class="flex gap-2">
+                    <button type="button" onclick="testGeminiConnection()" class="px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 border border-indigo-200 rounded-xl transition font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-bolt"></i> Kiểm tra Key
+                    </button>
+                    <button type="button" onclick="clearGeminiApiKey()" class="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-xl transition font-medium">
+                        Xóa key
+                    </button>
+                </div>
                 <div class="flex gap-2">
                     <button type="button" onclick="closeAiSettingsModal()" class="px-4 py-2 text-xs text-slate-600 hover:bg-slate-100 rounded-xl transition">Đóng</button>
                     <button type="button" onclick="saveGeminiApiKey()" class="px-4 py-2 text-xs font-semibold bg-pink-600 hover:bg-pink-700 text-white rounded-xl shadow transition">Lưu cấu hình</button>
@@ -1040,14 +1050,31 @@
         let selectedColor = 'bg-white';
         let isChatOpen = false;
         let aiExecutionMode = 'direct'; // 'direct' (Vẽ trực tiếp), 'hybrid' (Song song), 'card' (Thẻ Card)
-        // Default API Key (empty by default to use ultra-fast built-in smart AI math engine offline)
+        const storedDrawingSpecs = {};
+        let lastGeneratedSpec = null;
+        let activeGeometryObjects = [];
+        let repositioningGeomId = null;
+        let nextGeomObjId = 1;
+        let geminiApiKey = '';
         const DEFAULT_GEMINI_API_KEY = (typeof window !== 'undefined' && window.ENV && window.ENV.VITE_GEMINI_API_KEY) || '';
-        let savedKey = localStorage.getItem('padlet_gemini_api_key') || DEFAULT_GEMINI_API_KEY;
-        if (savedKey.startsWith('AQ.Ab8RN6')) {
-            localStorage.removeItem('padlet_gemini_api_key');
-            savedKey = '';
+        // Google Gemini API Key Configuration (Ưu tiên gọi API Gemini)
+        function getActiveGeminiKey() {
+            let k = geminiApiKey ||
+                    (typeof localStorage !== 'undefined' && localStorage.getItem('padlet_gemini_api_key')) ||
+                    (typeof window !== 'undefined' && window.ENV && window.ENV.VITE_GEMINI_API_KEY) ||
+                    DEFAULT_GEMINI_API_KEY || '';
+            if (k && k.startsWith('AQ.Ab8RN6')) {
+                if (typeof localStorage !== 'undefined') localStorage.removeItem('padlet_gemini_api_key');
+                k = '';
+            }
+            return (k || '').trim();
         }
-        let geminiApiKey = savedKey;
+        geminiApiKey = getActiveGeminiKey();
+
+        // User profile and authentication global state
+        let currentGoogleUser = null;
+        let currentUserEmail = '';
+        let currentUserAvatar = '';
 
         // Viewport Pan/Zoom state
         let panX = 40;
@@ -3754,7 +3781,8 @@
         function openAiSettingsModal() {
             const modal = document.getElementById('ai-settings-modal');
             const input = document.getElementById('gemini-api-key-input');
-            if (input) input.value = geminiApiKey;
+            const activeKey = getActiveGeminiKey();
+            if (input) input.value = activeKey;
             updateAiEngineBadge();
             if (modal) modal.classList.remove('hidden');
         }
@@ -3764,51 +3792,88 @@
             if (modal) modal.classList.add('hidden');
         }
 
-        function saveGeminiApiKey() {
+        function saveGeminiApiKey(customKey = null) {
             const input = document.getElementById('gemini-api-key-input');
-            geminiApiKey = input ? input.value.trim() : '';
-            if (geminiApiKey) {
-                localStorage.setItem('padlet_gemini_api_key', geminiApiKey);
+            const key = (customKey !== null ? customKey : (input ? input.value : '')).trim();
+            geminiApiKey = key;
+            if (key) {
+                localStorage.setItem('padlet_gemini_api_key', key);
+                if (typeof window !== 'undefined' && window.ENV) {
+                    window.ENV.VITE_GEMINI_API_KEY = key;
+                }
             } else {
                 localStorage.removeItem('padlet_gemini_api_key');
+                if (typeof window !== 'undefined' && window.ENV) {
+                    window.ENV.VITE_GEMINI_API_KEY = '';
+                }
             }
             updateAiEngineBadge();
             closeAiSettingsModal();
-            showToast(geminiApiKey ? 'Đã kích hoạt Gemini Flash API' : 'Đang dùng Smart Built-in Engine (Offline)');
+            showToast(key ? '✅ Đã kích hoạt Google Gemini API (Ưu tiên trực tuyến)' : '⚠️ Đã xóa khóa API');
         }
 
         function clearGeminiApiKey() {
             geminiApiKey = '';
             localStorage.removeItem('padlet_gemini_api_key');
+            if (typeof window !== 'undefined' && window.ENV) {
+                window.ENV.VITE_GEMINI_API_KEY = '';
+            }
             const input = document.getElementById('gemini-api-key-input');
             if (input) input.value = '';
             updateAiEngineBadge();
-            showToast('Đã xóa khóa API, chuyển về Smart Built-in Engine');
+            showToast('Đã xóa khóa Gemini API');
+        }
+
+        async function testGeminiConnection() {
+            const input = document.getElementById('gemini-api-key-input');
+            const key = (input ? input.value : getActiveGeminiKey()).trim();
+            if (!key) {
+                showToast('⚠️ Vui lòng nhập khóa API trước khi kiểm tra');
+                return;
+            }
+            showToast('🔍 Đang kiểm tra kết nối với Google Gemini...');
+            try {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: '1+1=' }] }] })
+                });
+                if (res.ok) {
+                    showToast('✅ Kết nối Gemini 2.0 Flash thành công! Khóa API hoàn toàn hợp lệ.');
+                } else {
+                    const errData = await res.json().catch(() => ({}));
+                    const errMsg = errData.error?.message || `Mã lỗi HTTP ${res.status}`;
+                    showToast(`❌ Khóa API không hợp lệ: ${errMsg}`);
+                }
+            } catch (e) {
+                showToast(`❌ Không thể kết nối: ${e.message}`);
+            }
         }
 
         function updateAiEngineBadge() {
             const statusBadge = document.getElementById('ai-engine-status-badge');
             const activeIndicator = document.getElementById('active-engine-indicator');
-            if (geminiApiKey) {
+            const key = getActiveGeminiKey();
+            if (key) {
                 if (statusBadge) {
                     statusBadge.className = 'px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-800 font-semibold text-[11px] border border-pink-200';
-                    statusBadge.innerHTML = '⚡ Gemini 3.1 Flash (Online AI)';
+                    statusBadge.innerHTML = '⚡ Gemini 2.0 Flash (Ưu tiên API)';
                 }
                 if (activeIndicator) {
                     activeIndicator.innerHTML = `
                         <span class="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
-                        <span class="text-pink-600 font-medium">Gemini 3.1 Flash Active</span>
+                        <span class="text-pink-600 font-medium">Gemini 2.0 Flash Active</span>
                     `;
                 }
             } else {
                 if (statusBadge) {
-                    statusBadge.className = 'px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold text-[11px] border border-emerald-200';
-                    statusBadge.innerHTML = '🟢 Smart Built-in Engine (Offline & Free)';
+                    statusBadge.className = 'px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold text-[11px] border border-amber-200';
+                    statusBadge.innerHTML = '⚠️ Cần nhập Gemini Key (Ưu tiên API)';
                 }
                 if (activeIndicator) {
                     activeIndicator.innerHTML = `
-                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span class="text-slate-600 font-medium">Smart Built-in (Offline)</span>
+                        <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                        <span class="text-amber-700 font-semibold">Ưu tiên Gemini (Nhấn để nhập Key)</span>
                     `;
                 }
             }
@@ -3848,130 +3913,83 @@
             btnSendChat.disabled = true;
 
             const modeLabel = aiExecutionMode === 'direct' ? 'vẽ trực tiếp lên mặt bảng' : (aiExecutionMode === 'hybrid' ? 'vẽ bảng & ghim thẻ giải' : 'tạo thẻ giải tương tác');
-            const actionDesc = imageToSend ? 'Đang bóc tách hình ảnh (Vision OCR) & ' : 'Đang xử lý bài toán & ';
+            const actionDesc = imageToSend ? 'Đang bóc tách hình ảnh (Gemini Vision) & ' : 'Đang gửi bài toán lên Gemini AI & ';
             const loadingMsgId = appendChatMessage('ai', `<div class="flex items-center gap-2"><i class="fa-solid fa-spinner fa-spin text-pink-500"></i><span>${actionDesc}${modeLabel}...</span></div>`);
 
             try {
                 let agentResult = null;
+                const activeKey = getActiveGeminiKey();
 
-                // 1. If Gemini API key is present, attempt live LLM call with Vision
-                if (geminiApiKey) {
+                // 1. Ưu tiên TUYỆT ĐỐI gọi Google Gemini API (Theo yêu cầu người dùng, không dùng não tĩnh hệ thống)
+                if (activeKey) {
                     try {
                         agentResult = await callGeminiAgent(text, aiExecutionMode, imageToSend);
                     } catch (apiErr) {
-                        console.warn("Gemini Vision API failed:", apiErr);
-                        showToast("Gemini Vision API bận, đang dùng Smart Built-in Engine");
+                        console.error("Gemini Vision/LLM API failed:", apiErr);
+                        const loadingEl = document.getElementById(loadingMsgId);
+                        if (loadingEl) {
+                            loadingEl.innerHTML = `
+                                <div class="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs space-y-2.5 text-left">
+                                    <div class="font-bold text-rose-700 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-triangle-exclamation text-rose-600"></i>
+                                        <span>Lỗi gọi Gemini API: ${escapeHtml(apiErr.message || 'Không thể phản hồi')}</span>
+                                    </div>
+                                    <p class="text-slate-600 text-[11px] leading-relaxed">
+                                        Hệ thống tuân thủ yêu cầu <strong>ưu tiên gọi API của Gemini xử lý (không dùng não hệ thống)</strong>. Vui lòng kiểm tra lại khóa API hoặc kết nối internet.
+                                    </p>
+                                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                                        <button onclick="openAiSettingsModal()" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-xs font-semibold transition flex items-center gap-1">
+                                            <i class="fa-solid fa-key"></i> Kiểm tra / Đổi API Key
+                                        </button>
+                                        <button onclick="fallbackToBuiltinOnce('${escapeHtml(text)}')" class="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-medium transition">
+                                            Dùng tạm não cục bộ lần này
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        btnSendChat.disabled = false;
+                        return;
                     }
-                } else if (imageToSend) {
-                    showToast("💡 Để bóc tách bài toán từ ảnh, hãy nhập Gemini API Key ở góc trên");
-                }
-
-                // 2. Default to Smart Built-in Geometric & Algebraic Engine
-                if (!agentResult) {
-                    agentResult = parseMathAgentPrompt(text || (imageToSend ? imageToSend.name : ''), aiExecutionMode);
-                }
-
-                // Normalize canvasSpec
-                const canvasSpec = agentResult.canvasSpec || (agentResult.primitives ? {
-                    title: agentResult.title,
-                    category: agentResult.category,
-                    primitives: agentResult.primitives,
-                    width: agentResult.width || 380,
-                    height: agentResult.height || 280,
-                    companionText: agentResult.companionText
-                } : null);
-                agentResult.canvasSpec = canvasSpec;
-
-                let specId = null;
-                if (canvasSpec) {
-                    specId = 'spec-' + Date.now();
-                    storedDrawingSpecs[specId] = canvasSpec;
-                    lastGeneratedSpec = canvasSpec;
-                }
-
-                // Update Loading message in Chat log
-                const loadingEl = document.getElementById(loadingMsgId);
-                if (loadingEl) {
-                    let actionBadge = '';
-                    if (aiExecutionMode === 'direct') {
-                        actionBadge = `<div class="text-[11px] text-pink-600 font-semibold pt-1"><i class="fa-solid fa-paintbrush"></i> Đã vẽ trực tiếp lên mặt bảng (Có thể kéo nắn đỉnh & di chuyển hình)</div>`;
-                    } else if (aiExecutionMode === 'hybrid') {
-                        actionBadge = `<div class="text-[11px] text-emerald-600 font-semibold pt-1"><i class="fa-solid fa-wand-magic-sparkles"></i> Đã vẽ lên bảng & ghim thẻ phân tích tương tác!</div>`;
-                    } else {
-                        actionBadge = `<div class="text-[11px] text-blue-600 font-semibold pt-1"><i class="fa-solid fa-clone"></i> Đã ghim thẻ bài toán lên bảng!</div>`;
-                    }
-
-                    loadingEl.innerHTML = `
-                        <div class="space-y-1.5">
-                            <p class="font-bold text-slate-900">✅ Đã giải quyết: ${escapeHtml(agentResult.title)}</p>
-                            <p class="text-xs text-slate-600">${escapeHtml(agentResult.explanation)}</p>
-                            ${agentResult.mathSummary ? `<div class="bg-slate-50 p-2 rounded-xl text-xs font-mono text-slate-700 border border-slate-200">${agentResult.mathSummary}</div>` : ''}
-                            ${actionBadge}
-                            ${specId ? `
-                            <div class="mt-2.5 pt-2 border-t border-slate-200 flex flex-wrap gap-2">
-                                <button onclick="startPlacementForSpec('${specId}')" class="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-xs">
-                                    <i class="fa-solid fa-location-crosshairs text-amber-200"></i>
-                                    <span>📍 Chỉ định vị trí vẽ trên bảng</span>
-                                </button>
-                                <button onclick="drawSpecAtCenter('${specId}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition border border-slate-200">
-                                    <i class="fa-solid fa-arrows-to-dot text-indigo-500"></i>
-                                    <span>🎯 Vẽ giữa màn hình</span>
-                                </button>
+                } else {
+                    // Chưa cấu hình Gemini API Key: KHÔNG tự ý dùng não hệ thống mà nhắc người dùng nhập Key
+                    const loadingEl = document.getElementById(loadingMsgId);
+                    if (loadingEl) {
+                        loadingEl.innerHTML = `
+                            <div class="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-xs space-y-2.5 text-left">
+                                <div class="font-bold text-amber-800 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-key text-pink-600"></i>
+                                    <span>Yêu cầu Gemini API Key (Chế độ ưu tiên API)</span>
+                                </div>
+                                <p class="text-slate-600 text-[11px] leading-relaxed">
+                                    Hệ thống đã bật chế độ <strong>ưu tiên gọi API của Gemini xử lý (đã tắt não hệ thống)</strong> theo yêu cầu. Để AI Gemini vẽ hình và giải toán chuẩn xác, vui lòng dán <strong>Gemini API Key</strong>:
+                                </p>
+                                <div class="flex gap-2">
+                                    <input id="inline-gemini-key-input" type="password" placeholder="Dán Gemini API Key (AIzaSy...)" class="flex-1 text-xs font-mono rounded-xl border border-slate-300 p-2.5 outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-300 bg-white" />
+                                    <button onclick="saveInlineGeminiKeyAndRetry('${escapeHtml(text)}')" class="px-3.5 py-2 text-xs font-bold bg-pink-600 hover:bg-pink-700 text-white rounded-xl shadow transition shrink-0">
+                                        Lưu & Giải ngay
+                                    </button>
+                                </div>
+                                <div class="flex items-center justify-between text-[11px] pt-1">
+                                    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-pink-600 hover:underline flex items-center gap-1 font-medium">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i> Lấy API Key miễn phí tại Google AI Studio
+                                    </a>
+                                    <button onclick="fallbackToBuiltinOnce('${escapeHtml(text)}')" class="text-slate-500 hover:text-slate-800 underline text-[10px]">
+                                        (Dùng tạm não cục bộ lần này)
+                                    </button>
+                                </div>
                             </div>
-                            ` : ''}
-                        </div>
-                    `;
-                    renderMathInElement(loadingEl, {
-                        delimiters: [
-                            {left: '$$', right: '$$', display: true},
-                            {left: '$', right: '$', display: false}
-                        ],
-                        macros: {
-                            "\\overparen": "\\overset{\\frown}{#1}",
-                            "\\arc": "\\overset{\\frown}{#1}"
-                        },
-                        throwOnError: false
-                    });
-                }
-
-                // Compute center of current viewport in stage coordinates
-                const rect = boardViewport.getBoundingClientRect();
-                const stageCenterX = Math.round((rect.width / 2 - panX) / zoom);
-                const stageCenterY = Math.round((rect.height / 2 - panY) / zoom);
-
-                // 3. Execution: Direct Board Drawing
-                if (aiExecutionMode === 'direct' || aiExecutionMode === 'hybrid') {
-                    if (agentResult.steps || agentResult.canvasSpec) {
-                        executeDirectBoardDrawing(agentResult.steps ? agentResult : agentResult.canvasSpec, stageCenterX, stageCenterY);
+                        `;
                     }
+                    btnSendChat.disabled = false;
+                    return;
                 }
 
-                // 4. Execution: Interactive Card Generation
-                if (aiExecutionMode === 'card' || aiExecutionMode === 'hybrid') {
-                    const cardX = (aiExecutionMode === 'hybrid') ? (stageCenterX + 220) : (stageCenterX - 180);
-                    const cardY = (stageCenterY - 140) + Math.floor(Math.random() * 40);
-
-                    addCard({
-                        type: agentResult.cardType || 'note',
-                        title: agentResult.title,
-                        shapeType: agentResult.shapeType || 'custom',
-                        content: agentResult.explanation,
-                        canvasSpec: agentResult.canvasSpec,
-                        steps: agentResult.steps || (agentResult.canvasSpec && agentResult.canvasSpec.steps),
-                        axis: agentResult.axis,
-                        grid: agentResult.grid,
-                        boundingbox: agentResult.boundingbox,
-                        s: agentResult.s || 60,
-                        v_water: agentResult.v_water || 5,
-                        total_time: agentResult.total_time || 5,
-                        x: Math.max(40, cardX),
-                        y: Math.max(40, cardY),
-                        width: (agentResult.cardType && agentResult.cardType.startsWith('word_')) ? 440 : (agentResult.cardType === '3d' ? 380 : 380),
-                        color: agentResult.cardColor || 'bg-white'
-                    });
+                if (!agentResult) {
+                    throw new Error("Không nhận được dữ liệu xử lý từ Gemini AI.");
                 }
 
-                showToast(`Đã trực quan hoá: ${agentResult.title}`);
+                renderMathAgentResult(agentResult, text, loadingMsgId);
 
             } catch (err) {
                 console.error("MathBoard AI Error:", err);
@@ -3979,129 +3997,146 @@
                 if (loadingEl) {
                     loadingEl.innerHTML = `<span class="text-rose-600 text-xs font-semibold">⚠️ Có lỗi khi phân tích: ${escapeHtml(err.message || 'Lỗi không xác định')}</span>`;
                 }
+                showToast(`Lỗi: ${err.message || 'Không thể xử lý'}`);
             } finally {
                 btnSendChat.disabled = false;
             }
         }
 
-        // ================= PROGRESSIVE DIRECT BOARD DRAWING ENGINE =================
-        /**
-         * Vector Snapping Algorithm to eliminate LLM Spatial Hallucination:
-         * P_snapped = O + R * (P - O) / |P - O|
-         */
-        function sanitizeAndSnapGeometry(P, O, R) {
-            if (!P || !O || !R || R <= 0) return P;
-            const dx = P.x - O.x;
-            const dy = P.y - O.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist === 0 || isNaN(dist)) return { x: O.x, y: O.y - R };
-            return {
-                x: Number((O.x + R * (dx / dist)).toFixed(2)),
-                y: Number((O.y + R * (dy / dist)).toFixed(2))
-            };
-        }
-
-        /**
-         * Project point P orthogonally onto segment P1-P2
-         */
-        function projectPointOnSegment(P, P1, P2) {
-            const dx = P2.x - P1.x;
-            const dy = P2.y - P1.y;
-            const lenSq = dx * dx + dy * dy;
-            if (lenSq === 0) return { x: P1.x, y: P1.y };
-            const t = Math.max(0, Math.min(1, ((P.x - P1.x) * dx + (P.y - P1.y) * dy) / lenSq));
-            return {
-                x: Number((P1.x + t * dx).toFixed(2)),
-                y: Number((P1.y + t * dy).toFixed(2))
-            };
-        }
-
-        /**
-         * Analytical Incenter and Incircle Calculator (Strict Barycentric & Heron Formula)
-         * 1. A, B, C with AC < AB
-         * 2. a = BC, b = AC, c = AB
-         * 3. Ox = (a*Ax + b*Bx + c*Cx)/(a+b+c), Oy = (a*Ay + b*By + c*Cy)/(a+b+c)
-         * 4. r = S / p
-         */
-        function calculateIncenterAndInradius(A, B, C) {
-            const a = Math.hypot(C.x - B.x, C.y - B.y);
-            const b = Math.hypot(C.x - A.x, C.y - A.y);
-            const c = Math.hypot(B.x - A.x, B.y - A.y);
-            const perimeter = a + b + c;
-            const Ox = (a * A.x + b * B.x + c * C.x) / perimeter;
-            const Oy = (a * A.y + b * B.y + c * C.y) / perimeter;
-            const O = { x: Number(Ox.toFixed(2)), y: Number(Oy.toFixed(2)) };
-            const p = perimeter / 2;
-            const S = Math.sqrt(Math.max(0, p * (p - a) * (p - b) * (p - c)));
-            const r = Number((S / p).toFixed(2));
-            const D = projectPointOnSegment(O, B, C);
-            const E = projectPointOnSegment(O, A, C);
-            const F = projectPointOnSegment(O, A, B);
-            return { O, r, a, b, c, p, S, D, E, F };
-        }
-
-        /**
-         * 3D Hidden Line Detection for Polyhedra via Face Normals
-         */
-        function detect3DHiddenLines(pointsMap, faces, edges, cameraVector = [1.0, 1.0, 1.0]) {
-            function cross(v1, v2) {
-                return [
-                    v1[1]*v2[2] - v1[2]*v2[1],
-                    v1[2]*v2[0] - v1[0]*v2[2],
-                    v1[0]*v2[1] - v1[1]*v2[0]
-                ];
+        window.saveInlineGeminiKeyAndRetry = function(retryText) {
+            const input = document.getElementById('inline-gemini-key-input');
+            const key = input ? input.value.trim() : '';
+            if (!key) {
+                showToast('Vui lòng dán khóa Gemini API Key!');
+                return;
             }
-            const faceStatus = faces.map((fVerts) => {
-                if (fVerts.length < 3) return { isFront: true, vertices: fVerts };
-                const p0 = pointsMap[fVerts[0]], p1 = pointsMap[fVerts[1]], p2 = pointsMap[fVerts[2]];
-                if (!p0 || !p1 || !p2) return { isFront: true, vertices: fVerts };
-                const v1 = [p1[0]-p0[0], p1[1]-p0[1], p1[2]-p0[2]];
-                const v2 = [p2[0]-p0[0], p2[1]-p0[1], p2[2]-p0[2]];
-                const N = cross(v1, v2);
-                const dot = N[0]*cameraVector[0] + N[1]*cameraVector[1] + N[2]*cameraVector[2];
-                return { isFront: dot > 0.001, vertices: fVerts };
-            });
-
-            return edges.map(([u, v]) => {
-                const adj = faceStatus.filter(f => {
-                    const idxU = f.vertices.indexOf(u), idxV = f.vertices.indexOf(v);
-                    if (idxU === -1 || idxV === -1) return false;
-                    const diff = Math.abs(idxU - idxV);
-                    return diff === 1 || diff === f.vertices.length - 1;
-                });
-                const isVisible = adj.length === 0 || adj.some(f => f.isFront);
-                return { u, v, dashed: !isVisible };
-            });
-        }
-
-// ================= INTERACTIVE GEOMETRY ENGINE ON PADLET =================
-        let activeGeometryObjects = [];
-        let nextGeomObjId = 1;
-        let isPlacingDrawingMode = false;
-        let pendingPlacementSpec = null;
-        let lastGeneratedSpec = null;
-        let repositioningGeomId = null;
-        const storedDrawingSpecs = {};
-
-        function startPlacementMode(spec = null) {
-            if (spec) pendingPlacementSpec = spec;
-            else if (!pendingPlacementSpec) pendingPlacementSpec = lastGeneratedSpec;
+            geminiApiKey = key;
+            localStorage.setItem('padlet_gemini_api_key', key);
+            if (typeof window !== 'undefined' && window.ENV) {
+                window.ENV.VITE_GEMINI_API_KEY = key;
+            }
+            updateAiEngineBadge();
+            showToast('✅ Đã lưu Gemini API Key! Đang giải bài toán qua Gemini AI...');
             
-            isPlacingDrawingMode = true;
-            const banner = document.getElementById('placement-guide-banner');
-            if (banner) banner.classList.remove('hidden');
-            boardViewport.classList.add('cursor-crosshair');
-            showToast('📍 Nhấp chuột hoặc chạm vào bất kỳ đâu trên bảng để đặt hình vẽ!');
-        }
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) chatInput.value = retryText;
+            handleChatSubmit(new Event('submit'));
+        };
 
-        function cancelPlacementMode() {
-            isPlacingDrawingMode = false;
-            pendingPlacementSpec = null;
-            repositioningGeomId = null;
-            const banner = document.getElementById('placement-guide-banner');
-            if (banner) banner.classList.add('hidden');
-            boardViewport.classList.remove('cursor-crosshair');
-            if (currentTool === 'place') setWhiteboardTool('hand');
+        window.fallbackToBuiltinOnce = function(promptText) {
+            showToast('Đang dùng tạm bộ phân tích cục bộ...');
+            const agentResult = parseMathAgentPrompt(promptText, aiExecutionMode);
+            renderMathAgentResult(agentResult, promptText);
+        };
+
+        function renderMathAgentResult(agentResult, sourceText, loadingMsgId = null) {
+            // Normalize canvasSpec
+            const canvasSpec = agentResult.canvasSpec || (agentResult.primitives ? {
+                title: agentResult.title,
+                category: agentResult.category,
+                primitives: agentResult.primitives,
+                width: agentResult.width || 380,
+                height: agentResult.height || 280,
+                companionText: agentResult.companionText
+            } : (agentResult.steps ? {
+                title: agentResult.title,
+                steps: agentResult.steps,
+                boundingbox: agentResult.boundingbox,
+                axis: agentResult.axis,
+                grid: agentResult.grid
+            } : null));
+            agentResult.canvasSpec = canvasSpec;
+
+            let specId = null;
+            if (canvasSpec) {
+                specId = 'spec-' + Date.now();
+                storedDrawingSpecs[specId] = canvasSpec;
+                lastGeneratedSpec = canvasSpec;
+            }
+
+            // Update Loading message in Chat log
+            const loadingEl = loadingMsgId ? document.getElementById(loadingMsgId) : null;
+            if (loadingEl) {
+                let actionBadge = '';
+                if (aiExecutionMode === 'direct') {
+                    actionBadge = `<div class="text-[11px] text-pink-600 font-semibold pt-1"><i class="fa-solid fa-paintbrush"></i> Đã vẽ trực tiếp lên mặt bảng (Có thể kéo nắn đỉnh & di chuyển hình)</div>`;
+                } else if (aiExecutionMode === 'hybrid') {
+                    actionBadge = `<div class="text-[11px] text-emerald-600 font-semibold pt-1"><i class="fa-solid fa-wand-magic-sparkles"></i> Đã vẽ lên bảng & ghim thẻ phân tích tương tác!</div>`;
+                } else {
+                    actionBadge = `<div class="text-[11px] text-blue-600 font-semibold pt-1"><i class="fa-solid fa-clone"></i> Đã ghim thẻ bài toán lên bảng!</div>`;
+                }
+
+                loadingEl.innerHTML = `
+                    <div class="space-y-1.5">
+                        <p class="font-bold text-slate-900">✅ Đã giải quyết: ${escapeHtml(agentResult.title)}</p>
+                        <p class="text-xs text-slate-600">${escapeHtml(agentResult.explanation)}</p>
+                        ${agentResult.mathSummary ? `<div class="bg-slate-50 p-2 rounded-xl text-xs font-mono text-slate-700 border border-slate-200">${agentResult.mathSummary}</div>` : ''}
+                        ${actionBadge}
+                        ${specId ? `
+                        <div class="mt-2.5 pt-2 border-t border-slate-200 flex flex-wrap gap-2">
+                            <button onclick="startPlacementForSpec('${specId}')" class="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition shadow-xs">
+                                <i class="fa-solid fa-location-crosshairs text-amber-200"></i>
+                                <span>📍 Chỉ định vị trí vẽ trên bảng</span>
+                            </button>
+                            <button onclick="drawSpecAtCenter('${specId}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition border border-slate-200">
+                                <i class="fa-solid fa-arrows-to-dot text-indigo-500"></i>
+                                <span>🎯 Vẽ giữa màn hình</span>
+                            </button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+                renderMathInElement(loadingEl, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false}
+                    ],
+                    macros: {
+                        "\\overparen": "\\overset{\\frown}{#1}",
+                        "\\arc": "\\overset{\\frown}{#1}"
+                    },
+                    throwOnError: false
+                });
+            }
+
+            // Compute center of current viewport in stage coordinates
+            const rect = boardViewport.getBoundingClientRect();
+            const stageCenterX = Math.round((rect.width / 2 - panX) / zoom);
+            const stageCenterY = Math.round((rect.height / 2 - panY) / zoom);
+
+            // Execution: Direct Board Drawing
+            if (aiExecutionMode === 'direct' || aiExecutionMode === 'hybrid') {
+                if (agentResult.steps || agentResult.canvasSpec) {
+                    executeDirectBoardDrawing(agentResult.steps ? agentResult : agentResult.canvasSpec, stageCenterX, stageCenterY);
+                }
+            }
+
+            // Execution: Interactive Card Generation
+            if (aiExecutionMode === 'card' || aiExecutionMode === 'hybrid') {
+                const cardX = (aiExecutionMode === 'hybrid') ? (stageCenterX + 220) : (stageCenterX - 180);
+                const cardY = (stageCenterY - 140) + Math.floor(Math.random() * 40);
+
+                addCard({
+                    type: agentResult.cardType || 'note',
+                    title: agentResult.title,
+                    shapeType: agentResult.shapeType || 'custom',
+                    content: agentResult.explanation,
+                    canvasSpec: agentResult.canvasSpec,
+                    steps: agentResult.steps || (agentResult.canvasSpec && agentResult.canvasSpec.steps),
+                    axis: agentResult.axis,
+                    grid: agentResult.grid,
+                    boundingbox: agentResult.boundingbox,
+                    s: agentResult.s || 60,
+                    v_water: agentResult.v_water || 5,
+                    total_time: agentResult.total_time || 5,
+                    x: Math.max(40, cardX),
+                    y: Math.max(40, cardY),
+                    width: (agentResult.cardType && agentResult.cardType.startsWith('word_')) ? 440 : (agentResult.cardType === '3d' ? 380 : 380),
+                    color: agentResult.cardColor || 'bg-white'
+                });
+            }
+
+            showToast(`Đã trực quan hoá: ${agentResult.title}`);
         }
 
         function startPlacementForSpec(specId) {
@@ -5557,17 +5592,42 @@
                     prims.push({ type: 'right_angle', vertex: { x: B.x, y: B.y }, p1: { x: A.x, y: A.y }, p2: { x: C.x, y: C.y }, size: 10, color: '#059669' });
                 }
 
+                let coordsA = { x: -2.5, y: -2.5 };
+                let coordsB = { x: 2.5, y: -2.5 };
+                let coordsC = { x: 2.5, y: 2.5 };
+                let coordsD = { x: -2.5, y: 2.5 };
+
+                if (isRect) {
+                    coordsA = { x: -3.5, y: -2.0 };
+                    coordsB = { x: 3.5, y: -2.0 };
+                    coordsC = { x: 3.5, y: 2.0 };
+                    coordsD = { x: -3.5, y: 2.0 };
+                } else if (isRhombus) {
+                    coordsA = { x: 0, y: -2.8 };
+                    coordsB = { x: 3.5, y: 0 };
+                    coordsC = { x: 0, y: 2.8 };
+                    coordsD = { x: -3.5, y: 0 };
+                } else if (!isSquare) {
+                    coordsA = { x: -3.5, y: -2.0 };
+                    coordsB = { x: 1.5, y: -2.0 };
+                    coordsC = { x: 3.5, y: 2.0 };
+                    coordsD = { x: -1.5, y: 2.0 };
+                }
+
                 const jsxStepsQuad = [
-                    { type: 'point', id: 'A', coords: [-3.5, 2.0], name: 'A', isFree: true, color: '#059669' },
-                    { type: 'point', id: 'B', coords: [2.5, 2.0], name: 'B', isFree: true, color: '#059669' },
-                    { type: 'point', id: 'D', coords: [-4.5, -2.0], name: 'D', isFree: true, color: '#059669' },
-                    { type: 'parallel', id: 'lineDC', base: 'AB', point: 'D', visible: false },
-                    { type: 'parallel', id: 'lineBC', base: 'AD', point: 'B', visible: false },
-                    { type: 'intersection', id: 'C', objects: ['lineDC', 'lineBC'], name: 'C', color: '#059669' },
-                    { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#10b981', fillOpacity: 0.08, strokeColor: '#059669', strokeWidth: 2.4 },
+                    { type: 'point', id: 'A', coords: [coordsA.x, coordsA.y], name: 'A', isFree: true, color: '#059669' },
+                    { type: 'point', id: 'B', coords: [coordsB.x, coordsB.y], name: 'B', isFree: true, color: '#059669' },
+                    { type: 'point', id: 'C', coords: [coordsC.x, coordsC.y], name: 'C', isFree: true, color: '#059669' },
+                    { type: 'point', id: 'D', coords: [coordsD.x, coordsD.y], name: 'D', isFree: true, color: '#059669' },
+                    { type: 'polygon', id: 'polyABCD', points: ['A', 'B', 'C', 'D'], fillColor: '#10b981', fillOpacity: 0.1, strokeColor: '#059669', strokeWidth: 2.5 },
                     { type: 'segment', id: 'AC', points: ['A', 'C'], color: '#94a3b8', width: 1.5, dash: 2 },
-                    { type: 'segment', id: 'BD', points: ['B', 'D'], color: '#94a3b8', width: 1.5, dash: 2 }
+                    { type: 'segment', id: 'BD', points: ['B', 'D'], color: '#94a3b8', width: 1.5, dash: 2 },
+                    { type: 'midpoint', id: 'O', points: ['A', 'C'], name: 'O', color: '#6366f1' }
                 ];
+                if (isRect || isSquare) {
+                    jsxStepsQuad.push({ type: 'angle', id: 'angA', points: ['B', 'A', 'D'], rightAngle: true, radius: 0.6 });
+                    jsxStepsQuad.push({ type: 'angle', id: 'angB', points: ['C', 'B', 'A'], rightAngle: true, radius: 0.6 });
+                }
 
                 return {
                     steps: jsxStepsQuad,
@@ -5889,46 +5949,128 @@
         }
 
         async function callGeminiAgent(prompt, mode, imageObj = null) {
-            const activeKey = geminiApiKey || DEFAULT_GEMINI_API_KEY || (window.ENV && window.ENV.VITE_GEMINI_API_KEY);
-            if (!activeKey) return null;
+            const activeKey = getActiveGeminiKey();
+            if (!activeKey) {
+                throw new Error("Chưa cấu hình Gemini API Key. Vui lòng nhập khóa API.");
+            }
 
-            // 1. SYSTEM PROMPT CHUẨN NGHIÊM NGẶT (TIER 1 BÓC TÁCH NGỮ NGHĨA)
-            const STRICT_SYSTEM_INSTRUCTION = "Bạn là trình biên dịch hình học. Tuyệt đối không phỏng đoán tọa độ (x,y) không gian. Hãy đọc đề bài và trả về kịch bản dựng hình bằng định dạng JSON thuần túy. Ví dụ: [{\"type\": \"point\", \"id\": \"A\"}, {\"type\": \"line\", \"points\": [\"A\", \"B\"]}]. Không giải thích, không output thêm text ngoài JSON.";
+            const GEMINI_SYSTEM_INSTRUCTION = `Bạn là MathBoard AI - Trình giải toán & Biên dịch hình học động (Dynamic Geometry & Math Compiler) hàng đầu.
+Nhiệm vụ của bạn là nhận câu hỏi, bài toán hoặc yêu cầu dựng hình từ người dùng và trả về DUY NHẤT một chuỗi JSON thuần túy (không bọc markdown, không output thêm text ngoài JSON).
 
-            // Hàm bóc tách JSON an toàn (Data Flow Parser)
-            function extractGeometryStepsSafely(rawText) {
+CẤU TRÚC JSON BẮT BUỘC:
+{
+  "title": "Tiêu đề ngắn gọn kèm emoji (ví dụ: 🟩 Hình vuông ABCD cạnh 4, 📐 Tam giác ABC vuông tại A, ⭕ Đường tròn tâm O và tiếp tuyến, 📈 Parabol y = x² - 4x + 3, 🚤 Bài toán ca nô)",
+  "cardType": "2d" | "3d" | "algebra",
+  "shapeType": "square" | "rectangle" | "triangle" | "circle" | "quadrilateral" | "trapezoid" | "pyramid3d" | "cube3d" | "cylinder3d" | "cone3d" | "parabola" | "graph" | "custom",
+  "explanation": "Lời giải toán học chi tiết, chuẩn xác, sư phạm bằng tiếng Việt. Sử dụng định dạng LaTeX cho công thức toán (ví dụ: $AB = 4$, $S = a^2 = 16$, $P = 4a = 16$).",
+  "mathSummary": "Tóm tắt công thức hoặc hệ thức chính (ví dụ: $$AB = BC = CD = DA = 4 \\quad ; \\quad S = 16 \\quad ; \\quad AC \\cap BD = O$$)",
+  "boundingbox": [-6, 6, 6, -6],
+  "axis": false,
+  "grid": false,
+  "steps": [ ... mảng các bước dựng hình JSXGraph 2D ... ]
+}
+
+QUY TẮC DỰNG HÌNH JSXGRAPH TRONG "steps":
+1. TỌA ĐỘ PHẢI CÂN ĐỐI, CHÍNH XÁC, ĐẶT QUANH GỐC TỌA ĐỘ (0,0):
+   - Đừng dùng tọa độ ngẫu nhiên. Hãy tính toán tọa độ đối xứng qua tâm (0,0).
+   - Ví dụ "Vẽ hình vuông ABCD có cạnh bằng 4":
+     + Điểm A: {"type": "point", "id": "A", "coords": [-2, -2], "name": "A", "color": "#059669"}
+     + Điểm B: {"type": "point", "id": "B", "coords": [2, -2], "name": "B", "color": "#059669"}
+     + Điểm C: {"type": "point", "id": "C", "coords": [2, 2], "name": "C", "color": "#059669"}
+     + Điểm D: {"type": "point", "id": "D", "coords": [-2, 2], "name": "D", "color": "#059669"}
+     + Polygon ABCD: {"type": "polygon", "id": "polyABCD", "points": ["A", "B", "C", "D"], "fillColor": "#10b981", "fillOpacity": 0.1, "strokeColor": "#059669", "strokeWidth": 2.5}
+     + Các góc vuông: {"type": "angle", "id": "angA", "points": ["D", "A", "B"], "rightAngle": true}, {"type": "angle", "id": "angB", "points": ["A", "B", "C"], "rightAngle": true}
+     + Đường chéo nét đứt: {"type": "segment", "id": "AC", "points": ["A", "C"], "dash": 2, "color": "#94a3b8"}, {"type": "segment", "id": "BD", "points": ["B", "D"], "dash": 2, "color": "#94a3b8"}
+     + Tâm O: {"type": "midpoint", "id": "O", "points": ["A", "C"], "name": "O", "color": "#6366f1"}
+     + Boundingbox phù hợp: [-5, 5, 5, -5]
+   - Ví dụ "Tam giác ABC vuông tại A có AB=3, AC=4":
+     + A(0,0), B(3,0), C(0,4) hoặc căn giữa: A(-1.5, -2), B(1.5, -2), C(-1.5, 2)
+     + Polygon ABC, góc vuông tại A, đường cao AH nếu có
+   - Ví dụ "Đường tròn tâm O bán kính 3":
+     + O(0,0), Circle O radius 3: {"type": "circle", "id": "circO", "center": "O", "radius": 3}
+   - Ví dụ Đồ thị hàm số / Parabol y = x^2 - 4x + 3:
+     + "axis": true, "grid": true
+     + {"type": "functiongraph", "id": "parabola", "fn": "x*x - 4*x + 3", "range": [-2, 6]}
+   - Ví dụ Hình học 3D (chóp đều, hình hộp, hình lập phương, nón, trụ...):
+     + Đặt cardType: "3d", shapeType: "pyramid3d" (hoặc "cube3d", "cone3d", "cylinder3d")
+     + steps có thể để mảng rỗng [] vì Three.js sẽ tự động render khối 3D 360 độ!
+   - Ví dụ Bài toán Đại số thuần túy (Ca nô xuôi ngược dòng, vòi nước, hệ phương trình...):
+     + Đặt cardType: "algebra", steps: []
+     + Viết explanation thật chi tiết, có lời giải từng bước, hệ phương trình, kết luận rõ ràng!
+
+2. CÁC LOẠI PHẦN TỬ HỢP LỆ TRONG "steps":
+- "point": id (string), coords ([x, y]), name (string), color (hex string)
+- "segment": id, points ([id1, id2]), color, width, dash (0 hoặc 2)
+- "line": id, points ([id1, id2]), color, dash
+- "polygon": id, points ([id1, id2, id3, ...]), fillColor, strokeColor, strokeWidth
+- "angle": id, points ([p1, vertex, p2]), rightAngle (boolean), label (string)
+- "circle": id, center (id), radius (number) hoặc point (id)
+- "midpoint": id, points ([id1, id2]), name
+- "perpendicular": id, base (line_or_segment_id), point (point_id)
+- "parallel": id, base (line_or_segment_id), point (point_id)
+- "intersection": id, objects ([obj1_id, obj2_id]), name
+- "functiongraph": id, fn (string biểu thức js như "x*x - 4*x + 3"), range ([-10, 10])
+
+TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI THÍCH THÊM BÊN NGOÀI JSON.`;
+
+            // Hàm bóc tách JSON an toàn
+            function extractGeminiResultSafely(rawText, fallbackPrompt) {
                 if (!rawText || typeof rawText !== 'string') return null;
                 let cleaned = rawText.trim();
                 cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
-                const firstBracket = cleaned.indexOf('[');
-                const lastBracket = cleaned.lastIndexOf(']');
-                if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-                    cleaned = cleaned.substring(firstBracket, lastBracket + 1);
-                } else {
-                    const firstBrace = cleaned.indexOf('{');
-                    const lastBrace = cleaned.lastIndexOf('}');
-                    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+                let parsed = null;
+                const firstBrace = cleaned.indexOf('{');
+                const lastBrace = cleaned.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+                    try {
+                        parsed = JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
+                    } catch (e) {}
+                }
+                if (!parsed) {
+                    const firstBracket = cleaned.indexOf('[');
+                    const lastBracket = cleaned.lastIndexOf(']');
+                    if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+                        try {
+                            const arr = JSON.parse(cleaned.substring(firstBracket, lastBracket + 1));
+                            if (Array.isArray(arr)) parsed = { steps: arr };
+                        } catch (e) {}
                     }
                 }
+                if (!parsed) {
+                    parsed = JSON.parse(cleaned);
+                }
+                if (Array.isArray(parsed)) {
+                    parsed = { steps: parsed };
+                }
 
-                const parsed = JSON.parse(cleaned);
-                if (Array.isArray(parsed)) return parsed;
-                if (parsed && Array.isArray(parsed.steps)) return parsed.steps;
-                if (parsed && Array.isArray(parsed.construction)) return parsed.construction;
-                return null;
+                const steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed.construction) ? parsed.construction : []);
+
+                return {
+                    title: parsed.title || `📐 ${fallbackPrompt.substring(0, 35)}...`,
+                    shapeType: parsed.shapeType || 'custom',
+                    cardType: parsed.cardType || (steps.length > 0 ? '2d' : 'algebra'),
+                    explanation: parsed.explanation || `Đã phân tích và giải toán qua Gemini Flash AI.`,
+                    mathSummary: parsed.mathSummary || (steps.length > 0 ? `$$\\text{Mô hình hình học động JSXGraph: } ${steps.length} \\text{ phần tử}$$` : ''),
+                    steps: steps,
+                    axis: parsed.axis !== undefined ? parsed.axis : false,
+                    grid: parsed.grid !== undefined ? parsed.grid : false,
+                    boundingbox: parsed.boundingbox || [-6, 6, 6, -6],
+                    cardColor: parsed.cardColor || 'bg-white'
+                };
             }
 
             const candidateModels = [
-                'gemini-1.5-flash',
                 'gemini-2.0-flash',
+                'gemini-1.5-flash',
+                'gemini-2.0-flash-lite',
                 'gemini-1.5-pro'
             ];
 
-            const promptText = prompt ? prompt.trim() : (imageObj ? 'Đọc và bóc tách đề bài toán học trong ảnh này, tạo các bước dựng hình JSON.' : '');
+            const promptText = prompt ? prompt.trim() : (imageObj ? 'Đọc và bóc tách bài toán hình học / đại số trong ảnh này, giải chi tiết và tạo kịch bản dựng hình JSON.' : '');
             let currentPrompt = promptText;
-            const maxRetries = 2; // Khối Retry Loop chống ảo giác
+            const maxRetries = 1;
+            let lastApiError = null;
 
             for (const model of candidateModels) {
                 let attempt = 0;
@@ -5947,7 +6089,7 @@
                         parts.push({ text: currentPrompt });
 
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 14000);
+                        const timeoutId = setTimeout(() => controller.abort(), 18000);
 
                         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
                             method: 'POST',
@@ -5955,7 +6097,7 @@
                             signal: controller.signal,
                             body: JSON.stringify({
                                 systemInstruction: {
-                                    parts: [{ text: STRICT_SYSTEM_INSTRUCTION }]
+                                    parts: [{ text: GEMINI_SYSTEM_INSTRUCTION }]
                                 },
                                 contents: [{ role: 'user', parts: parts }],
                                 generationConfig: {
@@ -5967,41 +6109,36 @@
 
                         clearTimeout(timeoutId);
 
-                        if (response.ok) {
-                            const data = await response.json();
-                            const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                            if (rawText) {
-                                try {
-                                    const validatedSteps = extractGeometryStepsSafely(rawText);
-                                    if (validatedSteps && validatedSteps.length > 0) {
-                                        return {
-                                            title: `📐 ${promptText.substring(0, 35)}...`,
-                                            shapeType: 'custom',
-                                            cardType: '2d',
-                                            explanation: `Đã dịch chuyển đề bài thành kịch bản dựng hình JSXGraph qua Gemini Flash AI (${validatedSteps.length} bước).`,
-                                            mathSummary: `$$\\text{Declarative JSXGraph Steps: } ${validatedSteps.length}$$`,
-                                            steps: validatedSteps,
-                                            axis: false,
-                                            grid: false,
-                                            boundingbox: [-7, 6, 7, -6]
-                                        };
-                                    }
-                                } catch (parseErr) {
-                                    console.warn(`[Gemini JSON Parse Error - Lần ${attempt}]:`, parseErr);
-                                    // Gửi phản hồi sửa sai cho Gemini trong lần thử tiếp theo
-                                    currentPrompt = `Phản hồi vừa rồi của bạn bị lỗi cú pháp JSON: "${parseErr.message}".
-Yêu cầu: Đọc lại đề bài "${promptText}" và CHỈ trả về mảng JSON thuần túy [ { "type": "point", "id": "A" }, ... ]. Không kèm text ngoài.`;
-                                    continue;
+                        if (!response.ok) {
+                            const errData = await response.json().catch(() => ({}));
+                            const msg = errData?.error?.message || `HTTP ${response.status} ${response.statusText}`;
+                            lastApiError = `[${model}]: ${msg}`;
+                            console.warn(`[Gemini API Lỗi - ${model}]:`, msg);
+                            break; // Thử model tiếp theo
+                        }
+
+                        const data = await response.json();
+                        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (rawText) {
+                            try {
+                                const result = extractGeminiResultSafely(rawText, promptText);
+                                if (result) {
+                                    return result;
                                 }
+                            } catch (parseErr) {
+                                console.warn(`[Gemini JSON Parse Error - ${model} Lần ${attempt}]:`, parseErr);
+                                currentPrompt = `Phản hồi trước bị lỗi JSON: ${parseErr.message}. YÊU CẦU: Chỉ trả về đối tượng JSON { "title": "...", "explanation": "...", "mathSummary": "...", "steps": [...] } cho đề bài: "${promptText}". Không viết gì ngoài JSON.`;
+                                continue;
                             }
                         }
-                    } catch (err) {
-                        console.warn(`Model ${model} lần thử ${attempt} thất bại:`, err);
+                    } catch (netErr) {
+                        lastApiError = `[${model}]: ${netErr.message}`;
+                        console.warn(`Model ${model} lần thử ${attempt} gặp lỗi mạng/timeout:`, netErr);
                     }
                 }
             }
 
-            return null; // Fallback an toàn sang Smart Built-in Engine
+            throw new Error(lastApiError || "Không thể nhận phản hồi từ Gemini API. Vui lòng kiểm tra API Key.");
         }
 
         // ================= CHAT LOG RENDERING =================
@@ -7259,9 +7396,6 @@ Yêu cầu: Đọc lại đề bài "${promptText}" và CHỈ trả về mảng 
         }
 
         let googleClientId = getGoogleClientId();
-        let currentGoogleUser = null;
-        let currentUserEmail = '';
-        let currentUserAvatar = '';
 
         function hashCode(str) {
             let hash = 0;
