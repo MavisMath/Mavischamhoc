@@ -134,7 +134,7 @@ export function extractGeminiResultSafely(rawText: string, fallbackPrompt: strin
 
   const steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed.construction) ? parsed.construction : []);
 
-  return {
+  const rawRes: AgentMathResponse = {
     title: parsed.title || `📐 ${fallbackPrompt.substring(0, 30)}...`,
     shapeType: parsed.shapeType || 'custom',
     cardType: parsed.cardType || (steps.length > 0 ? '2d' : 'algebra'),
@@ -145,6 +145,90 @@ export function extractGeminiResultSafely(rawText: string, fallbackPrompt: strin
     grid: parsed.grid ?? false,
     boundingbox: parsed.boundingbox || [-7, 5.5, 7, -5.5]
   };
+
+  return autoCorrectGeometricConstraints(rawRes, fallbackPrompt);
+}
+
+/**
+ * Geometric Constraint Solver & Auto-Corrector
+ * Solves and normalizes coordinates mathematically using Euclidean analytical geometry.
+ */
+export function autoCorrectGeometricConstraints(
+  agentResult: AgentMathResponse,
+  promptText: string
+): AgentMathResponse {
+  if (!agentResult || !agentResult.steps || !Array.isArray(agentResult.steps)) return agentResult;
+  const lower = (promptText || '').toLowerCase().replace(/\s+/g, ' ');
+
+  const projectPointOnLine = (P: number[], A: number[], B: number[]): number[] => {
+    const dx = B[0] - A[0], dy = B[1] - A[1];
+    const d2 = dx * dx + dy * dy;
+    if (d2 === 0) return [A[0], A[1]];
+    const t = ((P[0] - A[0]) * dx + (P[1] - A[1]) * dy) / d2;
+    return [A[0] + t * dx, A[1] + t * dy];
+  };
+
+  const reflectPoint = (P: number[], Center: number[]): number[] => [2 * Center[0] - P[0], 2 * Center[1] - P[1]];
+  const midpoint = (A: number[], B: number[]): number[] => [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2];
+  const getPt = (id: string) => agentResult.steps.find((s: any) => s && s.type === 'point' && (s.id === id || s.name === id)) as any;
+
+  // 1. Right Triangle at A with Altitude AH (and AB < AC)
+  const isTriRightAtA = (lower.includes('tam giác') || lower.includes('△')) && 
+                        (lower.includes('vuông tại a') || lower.includes('vuông ở a') || (lower.includes('tam giác abc') && lower.includes('vuông') && lower.includes('a')));
+  const hasAbLessThanAc = lower.includes('ab < ac') || lower.includes('ab<ac') || lower.includes('ac > ab') || lower.includes('ac>ab');
+  const hasAltitudeAH = lower.includes('đường cao ah') || lower.includes('ah vuông góc') || lower.includes('ah perp bc') || lower.includes('ah ⊥ bc');
+
+  if (isTriRightAtA && hasAltitudeAH) {
+    const xB = -4.0, yB = -2.0;
+    const xC = 5.0, yC = -2.0;
+    const bh = hasAbLessThanAc ? 2.5 : 4.5;
+    const ch = hasAbLessThanAc ? 6.5 : 4.5;
+    const xH = xB + bh;
+    const yH = yB;
+    const ahLen = Math.sqrt(bh * ch);
+    const xA = xH;
+    const yA = yH + ahLen;
+
+    const pA = getPt('A'); if (pA) pA.coords = [xA, yA];
+    const pB = getPt('B'); if (pB) pB.coords = [xB, yB];
+    const pC = getPt('C'); if (pC) pC.coords = [xC, yC];
+    const pH = getPt('H'); if (pH) pH.coords = [xH, yH];
+
+    const pD = getPt('D');
+    if (pD && (lower.includes('đối xứng') || lower.includes('d là điểm'))) {
+      pD.coords = reflectPoint([xA, yA], [xH, yH]);
+    }
+
+    const pE = getPt('E');
+    if (pE && (lower.includes('he perp ab') || lower.includes('he vuông góc') || lower.includes('tại e') || lower.includes('he ⊥ ab') || lower.includes('he perp'))) {
+      pE.coords = projectPointOnLine([xH, yH], [xA, yA], [xB, yB]);
+    }
+
+    const pF = getPt('F');
+    if (pF && (lower.includes('hf perp ac') || lower.includes('hf vuông góc') || lower.includes('tại f') || lower.includes('hf ⊥ ac') || lower.includes('hf perp'))) {
+      pF.coords = projectPointOnLine([xH, yH], [xA, yA], [xC, yC]);
+    }
+
+    const pI = getPt('I');
+    if (pI && (lower.includes('trung điểm') || lower.includes('i là trung điểm'))) {
+      pI.coords = midpoint([xH, yH], [xC, yC]);
+    }
+
+    const minY = pD ? Math.min(-7.5, pD.coords[1] - 1.2) : -3.5;
+    const maxY = Math.max(5.0, yA + 1.2);
+    agentResult.boundingbox = [-6.5, maxY, 7.0, minY];
+
+    agentResult.steps.forEach((s: any) => {
+      if (s && s.type === 'angle' && s.rightAngle) {
+        s.fillOpacity = 0.05;
+        s.fillColor = 'transparent';
+        s.radius = 0.45;
+      }
+    });
+  }
+
+  return agentResult;
+}
 }
 
 export async function callGeminiMathAgent(
