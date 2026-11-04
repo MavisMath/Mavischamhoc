@@ -9223,6 +9223,40 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
         let lastCursorBroadcastTime = 0;
         let isApplyingRemoteDelta = false;
 
+        // ================= INSTANT HYDRATION VIA REST API =================
+        async function hydrateRoomState(roomId) {
+            try {
+                const res = await fetch('/api/room?id=' + encodeURIComponent(roomId));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.status === 'ok') {
+                        console.log('[Collab] REST API Hydrated room state:', roomId, data);
+                        if (data.name) {
+                            const titleInp = document.getElementById('padlet-title-input');
+                            if (titleInp) titleInp.value = data.name;
+                            document.title = data.name + ' - MathBoard';
+                        }
+                        if (data.isLocked !== undefined) {
+                            isRoomLocked = Boolean(data.isLocked);
+                        }
+                        if (data.state && (
+                            (data.state.strokes && data.state.strokes.length) ||
+                            (data.state.cards && data.state.cards.length) ||
+                            (data.state.padletTexts && data.state.padletTexts.length) ||
+                            (data.state.geometryObjects && data.state.geometryObjects.length) ||
+                            (data.state.jsxgraphBoards && data.state.jsxgraphBoards.length)
+                        )) {
+                            restoreCanvasState(data.state);
+                            showToast('Đã tải toàn bộ nội dung phòng từ máy chủ');
+                        }
+                        setCloudStatus('synced');
+                    }
+                }
+            } catch (err) {
+                console.warn('[Collab] REST API Hydration notice:', err);
+            }
+        }
+
         function initRealtimeCollaboration() {
             // 1. Parse Room ID, Role, and User Name from URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -9248,10 +9282,20 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 currentUserName = (rRole === 'viewer') ? ('Học sinh ' + currentUserId.slice(-4)) : ('Giáo viên ' + currentUserId.slice(-4));
             }
 
-            // Requested role
-            if (rRole === 'viewer') currentCollabRole = 'viewer';
-            else if (rRole === 'editor') currentCollabRole = 'editor';
-            else currentCollabRole = 'host';
+            // Requested role enforcement
+            if (rRole === 'viewer') {
+                currentCollabRole = 'viewer';
+                setTimeout(() => {
+                    selectTool('hand');
+                    updateRoleUI('viewer', isRoomLocked);
+                }, 100);
+            } else if (rRole === 'editor') {
+                currentCollabRole = 'editor';
+                updateRoleUI('editor', isRoomLocked);
+            } else {
+                currentCollabRole = 'host';
+                updateRoleUI('host', isRoomLocked);
+            }
 
             // Generate user color
             const colors = ['#ec4899', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#06b6d4', '#e11d48'];
@@ -9260,7 +9304,10 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             // Update UI elements
             updateCollabHeaderUI();
 
-            // 2. Setup BroadcastChannel for Instant Multi-tab sync on same machine
+            // 2. Instant Room Hydration via HTTP REST (Zero Delay for Guests & Hosts)
+            hydrateRoomState(currentRoomId);
+
+            // 3. Setup BroadcastChannel for Instant Multi-tab sync on same machine
             try {
                 if (window.BroadcastChannel) {
                     collabBroadcast = new BroadcastChannel('padlet_room_' + currentRoomId);
@@ -9305,7 +9352,9 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
 
         function connectWebSocketServer() {
             // Determine WS host: ws://localhost:8765
-            const wsUrl = 'ws://' + (window.location.hostname || 'localhost') + ':8765';
+            const protocol = (window.location.protocol === 'https:') ? 'wss:' : 'ws:';
+            const host = window.location.host || 'localhost:8080';
+            const wsUrl = `${protocol}//${host}/ws`;
             console.log('[Collab] Connecting to WebSocket server:', wsUrl);
 
             try {
@@ -9713,8 +9762,23 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 type: 'canvas:save_snapshot',
                 roomId: currentRoomId,
                 userId: currentUserId,
-                state: snapshot
+                state: snapshot,
+                name: pTitle
             });
+
+            // Also persist via REST POST for guaranteed durability
+            try {
+                fetch('/api/room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        roomId: currentRoomId,
+                        state: snapshot,
+                        name: pTitle,
+                        userId: currentUserId
+                    })
+                }).catch(e => {});
+            } catch (e) {}
         }
 
         function setCloudStatus(status) {

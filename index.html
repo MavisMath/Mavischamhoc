@@ -475,6 +475,7 @@
         window.onload = function() {
             initUserIdentity();
             loadPadletsRegistry();
+            fetchRoomsFromApi();
             connectCollabWebSocket();
         };
 
@@ -512,9 +513,20 @@
         }
 
         // Connect to WebSocket Server to fetch real-time rooms
+        function fetchRoomsFromApi() {
+            fetch('/api/rooms')
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.status === 'ok' && Array.isArray(data.rooms)) {
+                        mergeServerRooms(data.rooms);
+                    }
+                })
+                .catch(err => console.log('[Collab] REST rooms notice:', err));
+        }
+
         function connectCollabWebSocket() {
             try {
-                const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.hostname + ':8765';
+                const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
                 wsCollab = new WebSocket(wsUrl);
 
                 wsCollab.onopen = function() {

@@ -1,24 +1,29 @@
 # -*- coding: utf-8 -*-
 """
-Padlet AI MathBoard - Real-Time Collaboration & State Persistence Server
-========================================================================
-- WebSockets Real-Time Sync on Port 8765
-- Room-based Two-Way Data Streaming (Strokes, Texts, Cards, 3D Geometries, Cursors)
-- Role-based Access Control (Host, Editor, Viewer)
-- SQLite Database Auto-Save & State Recovery (Google Docs style)
+Padlet AI MathBoard - Unified Real-Time Collaboration & Web Server
+==================================================================
+- Single-Port Cloud Architecture (Works seamlessly on Render.com & Localhost)
+- HTTP REST API for Instant Room State Hydration & Dashboard Sync
+- WebSocket Endpoint (/ws) for Ultra-Low Latency Live Drawing & Cursors
+- SQLite Database Persistence (Google Docs Auto-Save & Recovery)
+- Static File Server for HTML, CSS, JS, and Assets
 """
 
 import asyncio
 import json
-import sqlite3
+import os
+import sys
 import time
+import sqlite3
+from pathlib import Path
 from datetime import datetime
-import websockets
-from websockets.asyncio.server import serve
 
-DB_PATH = 'padlet_collab.sqlite'
+from aiohttp import web, WSMsgType
 
-# Initialize SQLite Database
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = str(BASE_DIR / 'padlet_collab.sqlite')
+
+# ================= DATABASE LAYER (SQLITE) =================
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -43,26 +48,26 @@ def init_db():
     ''')
     conn.commit()
     conn.close()
-    print("[DB] SQLite database initialized successfully at", DB_PATH)
+    print(f"[DB] SQLite database initialized successfully at {DB_PATH}")
 
-def db_get_or_create_room(room_id, user_id, user_name, requested_role):
+def db_get_or_create_room(room_id, user_id=None, user_name=None, requested_role='editor'):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute('SELECT host_id, is_locked, name FROM rooms WHERE room_id = ?', (room_id,))
     row = cur.fetchone()
     
     if not row:
-        # First user is Host by default
         actual_role = 'host'
-        room_name = f"Phòng {room_id}"
-        cur.execute('INSERT INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, ?)',
-                    (room_id, room_name, user_id, 0))
-        # Initialize empty canvas state
+        room_name = f"Padlet {room_id}"
+        host_id = user_id or f"u_host_{int(time.time())}"
+        cur.execute('INSERT INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, 0)',
+                    (room_id, room_name, host_id))
         empty_state = json.dumps({
             "strokes": [],
             "padletTexts": [],
             "cards": [],
             "geometryObjects": [],
+            "jsxgraphBoards": [],
             "settings": {"panX": 40, "panY": 40, "zoom": 1}
         })
         cur.execute('INSERT INTO canvas_states (room_id, version, state_json) VALUES (?, 1, ?)',
@@ -71,7 +76,7 @@ def db_get_or_create_room(room_id, user_id, user_name, requested_role):
         is_locked = 0
     else:
         host_id, is_locked, room_name = row
-        if user_id == host_id:
+        if user_id and user_id == host_id:
             actual_role = 'host'
         elif is_locked and requested_role != 'host':
             actual_role = 'viewer'
@@ -79,7 +84,7 @@ def db_get_or_create_room(room_id, user_id, user_name, requested_role):
             actual_role = requested_role if requested_role in ('editor', 'viewer') else 'editor'
             
     conn.close()
-    return actual_role, bool(is_locked), (room_name or f"Phòng {room_id}")
+    return actual_role, bool(is_locked), (room_name or f"Padlet {room_id}"), host_id
 
 def db_get_canvas_state(room_id):
     conn = sqlite3.connect(DB_PATH)
@@ -97,10 +102,11 @@ def db_get_canvas_state(room_id):
         "padletTexts": [],
         "cards": [],
         "geometryObjects": [],
+        "jsxgraphBoards": [],
         "settings": {"panX": 40, "panY": 40, "zoom": 1}
     }
 
-def db_save_canvas_state(room_id, state_dict):
+def db_save_canvas_state(room_id, state_dict, room_name=None):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     state_json = json.dumps(state_dict)
@@ -112,7 +118,11 @@ def db_save_canvas_state(room_id, state_dict):
             version = version + 1,
             updated_at = CURRENT_TIMESTAMP
     ''', (room_id, state_json))
-    cur.execute('UPDATE rooms SET updated_at = CURRENT_TIMESTAMP WHERE room_id = ?', (room_id,))
+    
+    if room_name:
+        cur.execute('UPDATE rooms SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE room_id = ?', (room_name, room_id))
+    else:
+        cur.execute('UPDATE rooms SET updated_at = CURRENT_TIMESTAMP WHERE room_id = ?', (room_id,))
     conn.commit()
     conn.close()
 
@@ -182,7 +192,7 @@ def db_duplicate_room(src_id, target_id, new_name, host_id='u_host'):
     cur.execute('SELECT state_json FROM canvas_states WHERE room_id = ?', (src_id,))
     row = cur.fetchone()
     state_json = row[0] if row else json.dumps({
-        "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "settings": {"panX": 40, "panY": 40, "zoom": 1}
+        "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "jsxgraphBoards": [], "settings": {"panX": 40, "panY": 40, "zoom": 1}
     })
     cur.execute('INSERT INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, 0)',
                 (target_id, new_name, host_id))
@@ -198,15 +208,16 @@ def db_create_room_with_state(room_id, name, host_id, state_dict=None):
                 (room_id, name, host_id))
     if state_dict is None:
         state_dict = {
-            "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "settings": {"panX": 40, "panY": 40, "zoom": 1}
+            "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "jsxgraphBoards": [], "settings": {"panX": 40, "panY": 40, "zoom": 1}
         }
     cur.execute('INSERT OR REPLACE INTO canvas_states (room_id, version, state_json) VALUES (?, 1, ?)',
                 (room_id, json.dumps(state_dict)))
     conn.commit()
     conn.close()
 
-# In-Memory Active Rooms & Connected Clients
-# rooms[room_id] = { client_ws: { 'userId': ..., 'userName': ..., 'role': ..., 'color': ... } }
+
+# ================= REAL-TIME IN-MEMORY STATE =================
+# active_rooms[room_id] = { ws_response: { 'userId': ..., 'userName': ..., 'role': ..., 'color': ... } }
 active_rooms = {}
 
 async def broadcast_to_room(room_id, message_dict, exclude_ws=None):
@@ -215,9 +226,9 @@ async def broadcast_to_room(room_id, message_dict, exclude_ws=None):
     msg_str = json.dumps(message_dict)
     disconnected = []
     for ws in list(active_rooms[room_id].keys()):
-        if ws != exclude_ws:
+        if ws != exclude_ws and not ws.closed:
             try:
-                await ws.send(msg_str)
+                await ws.send_str(msg_str)
             except Exception:
                 disconnected.append(ws)
     for ws in disconnected:
@@ -230,6 +241,8 @@ def get_room_users(room_id):
     users = []
     seen = set()
     for ws, info in active_rooms[room_id].items():
+        if ws.closed:
+            continue
         uid = info.get('userId')
         if uid not in seen:
             seen.add(uid)
@@ -243,242 +256,442 @@ def get_room_users(room_id):
             })
     return users
 
-async def handle_connection(websocket):
+
+# ================= HTTP REST API HANDLERS =================
+async def api_health(request):
+    return web.json_response({
+        "status": "ok",
+        "service": "Padlet AI MathBoard Realtime & Persistence Server",
+        "timestamp": datetime.now().isoformat()
+    })
+
+async def api_get_room(request):
+    """
+    GET /api/room?id=<roomId>
+    Fast Hydration: returns the complete room state and metadata directly from SQLite.
+    Allows guests and hosts to immediately see the canvas in <100ms.
+    """
+    room_id = request.query.get('id', 'default-room').strip()
+    actual_role, is_locked, room_name, host_id = db_get_or_create_room(room_id)
+    canvas_state = db_get_canvas_state(room_id)
+    
+    return web.json_response({
+        "status": "ok",
+        "roomId": room_id,
+        "name": room_name,
+        "hostId": host_id,
+        "isLocked": is_locked,
+        "state": canvas_state,
+        "onlineUsers": get_room_users(room_id)
+    })
+
+async def api_save_room(request):
+    """
+    POST /api/room
+    Body: { "roomId": ..., "state": {...}, "name": ... }
+    Saves canvas snapshot to SQLite.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Invalid JSON"}, status=400)
+        
+    room_id = data.get('roomId')
+    if not room_id:
+        return web.json_response({"status": "error", "message": "Missing roomId"}, status=400)
+        
+    state = data.get('state', {})
+    room_name = data.get('name')
+    db_save_canvas_state(room_id, state, room_name)
+    
+    return web.json_response({
+        "status": "ok",
+        "roomId": room_id,
+        "savedAt": datetime.now().isoformat()
+    })
+
+async def api_list_rooms(request):
+    """
+    GET /api/rooms
+    Returns list of all rooms for the Google Docs dashboard.
+    """
+    rooms = db_list_rooms()
+    return web.json_response({
+        "status": "ok",
+        "rooms": rooms
+    })
+
+async def api_rename_room(request):
+    """
+    POST /api/room/rename
+    Body: { "roomId": ..., "name": ... }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Invalid JSON"}, status=400)
+        
+    room_id = data.get('roomId')
+    new_name = data.get('name')
+    if room_id and new_name:
+        db_rename_room(room_id, new_name)
+        # Notify connected users in that room
+        await broadcast_to_room(room_id, {
+            'type': 'room:name_updated',
+            'roomId': room_id,
+            'name': new_name
+        })
+        return web.json_response({"status": "ok", "roomId": room_id, "name": new_name})
+    return web.json_response({"status": "error", "message": "Missing fields"}, status=400)
+
+async def api_delete_room(request):
+    """
+    POST /api/room/delete
+    Body: { "roomId": ... }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Invalid JSON"}, status=400)
+        
+    room_id = data.get('roomId')
+    if room_id:
+        db_delete_room(room_id)
+        return web.json_response({"status": "ok", "roomId": room_id})
+    return web.json_response({"status": "error", "message": "Missing roomId"}, status=400)
+
+async def api_duplicate_room(request):
+    """
+    POST /api/room/duplicate
+    Body: { "sourceRoomId": ..., "targetRoomId": ..., "name": ..., "userId": ... }
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"status": "error", "message": "Invalid JSON"}, status=400)
+        
+    src = data.get('sourceRoomId')
+    tgt = data.get('targetRoomId')
+    name = data.get('name', 'Bản sao Padlet')
+    uid = data.get('userId', 'u_host')
+    if src and tgt:
+        db_duplicate_room(src, tgt, name, uid)
+        return web.json_response({"status": "ok", "roomId": tgt, "name": name})
+    return web.json_response({"status": "error", "message": "Missing room IDs"}, status=400)
+
+
+# ================= WEBSOCKET HANDLER =================
+async def websocket_handler(request):
+    """
+    WebSocket endpoint on /ws (and /ws/).
+    Upgrades incoming HTTP connection to full-duplex WebSocket.
+    """
+    ws = web.WebSocketResponse(heartbeat=25.0)
+    await ws.prepare(request)
+
     client_info = {}
     current_room = None
-    
+
     try:
-        async for raw_msg in websocket:
-            try:
-                data = json.loads(raw_msg)
-            except Exception:
-                continue
-
-            msg_type = data.get('type')
-            
-            # 1. User joins a room
-            if msg_type == 'join':
-                room_id = data.get('roomId', 'default-room')
-                user_id = data.get('userId', f"u_{int(time.time()*1000)}")
-                user_name = data.get('userName', f"User {user_id[-4:]}")
-                requested_role = data.get('role', 'editor')
-                color = data.get('color', '#3b82f6')
-
-                current_room = room_id
-                actual_role, is_locked, room_name = db_get_or_create_room(room_id, user_id, user_name, requested_role)
-                
-                client_info = {
-                    'userId': user_id,
-                    'userName': user_name,
-                    'email': data.get('email', ''),
-                    'avatar': data.get('avatar', ''),
-                    'role': actual_role,
-                    'color': color
-                }
-
-                if room_id not in active_rooms:
-                    active_rooms[room_id] = {}
-                active_rooms[room_id][websocket] = client_info
-
-                # Fetch persisted state from SQLite
-                canvas_state = db_get_canvas_state(room_id)
-
-                # Send initial state, room name, and confirmed role to joining client
-                await websocket.send(json.dumps({
-                    'type': 'room:init',
-                    'roomId': room_id,
-                    'roomName': room_name,
-                    'role': actual_role,
-                    'isLocked': is_locked,
-                    'state': canvas_state,
-                    'users': get_room_users(room_id)
-                }))
-
-                # Notify other users in room
-                await broadcast_to_room(room_id, {
-                    'type': 'user:joined',
-                    'user': client_info,
-                    'users': get_room_users(room_id)
-                }, exclude_ws=websocket)
-
-                print(f"[WS] User {user_name} ({actual_role}) joined room {room_id}")
-
-            # 2. Canvas Real-time Delta (Strokes, Texts, Cards, Geometries)
-            elif msg_type == 'canvas:delta':
-                if not current_room or client_info.get('role') == 'viewer':
-                    # Viewers cannot mutate canvas
+        async for msg in ws:
+            if msg.type == WSMsgType.TEXT:
+                try:
+                    data = json.loads(msg.data)
+                except Exception:
                     continue
 
-                delta = data.get('delta', {})
-                # Broadcast delta to all other online users
-                await broadcast_to_room(current_room, {
-                    'type': 'canvas:delta',
-                    'senderId': client_info.get('userId'),
-                    'senderName': client_info.get('userName'),
-                    'delta': delta
-                }, exclude_ws=websocket)
+                msg_type = data.get('type')
 
-            # 3. Canvas Auto-Save Snapshot (Google Docs style)
-            elif msg_type == 'canvas:save_snapshot':
-                if not current_room or client_info.get('role') == 'viewer':
-                    continue
+                # 1. User joins a room
+                if msg_type == 'join':
+                    room_id = data.get('roomId', 'default-room')
+                    user_id = data.get('userId', f"u_{int(time.time()*1000)}")
+                    user_name = data.get('userName', f"User {user_id[-4:]}")
+                    requested_role = data.get('role', 'editor')
+                    color = data.get('color', '#3b82f6')
 
-                full_state = data.get('state', {})
-                db_save_canvas_state(current_room, full_state)
+                    current_room = room_id
+                    actual_role, is_locked, room_name, _ = db_get_or_create_room(room_id, user_id, user_name, requested_role)
 
-                await websocket.send(json.dumps({
-                    'type': 'save:ack',
-                    'status': 'saved',
-                    'timestamp': datetime.now().isoformat()
-                }))
+                    client_info = {
+                        'userId': user_id,
+                        'userName': user_name,
+                        'email': data.get('email', ''),
+                        'avatar': data.get('avatar', ''),
+                        'role': actual_role,
+                        'color': color
+                    }
 
-            # 4. Live Cursor Movement
-            elif msg_type == 'cursor:move':
-                if not current_room:
-                    continue
-                await broadcast_to_room(current_room, {
-                    'type': 'cursor:move',
-                    'userId': client_info.get('userId'),
-                    'userName': client_info.get('userName'),
-                    'color': client_info.get('color'),
-                    'x': data.get('x', 0),
-                    'y': data.get('y', 0)
-                }, exclude_ws=websocket)
+                    if room_id not in active_rooms:
+                        active_rooms[room_id] = {}
+                    active_rooms[room_id][ws] = client_info
 
-            # 5. Host toggles room lock
-            elif msg_type == 'room:set_lock':
-                if not current_room or client_info.get('role') != 'host':
-                    continue
+                    # Canvas state from SQLite
+                    canvas_state = db_get_canvas_state(room_id)
 
-                is_locked = bool(data.get('isLocked', False))
-                db_set_room_lock(current_room, is_locked)
+                    # Send initial room state to joining client
+                    await ws.send_str(json.dumps({
+                        'type': 'room:init',
+                        'roomId': room_id,
+                        'roomName': room_name,
+                        'role': actual_role,
+                        'isLocked': is_locked,
+                        'state': canvas_state,
+                        'users': get_room_users(room_id)
+                    }))
 
-                # Broadcast lock state
-                await broadcast_to_room(current_room, {
-                    'type': 'room:lock_changed',
-                    'isLocked': is_locked,
-                    'by': client_info.get('userName')
-                })
+                    # Broadcast new joiner to other clients
+                    await broadcast_to_room(room_id, {
+                        'type': 'user:joined',
+                        'user': client_info,
+                        'users': get_room_users(room_id)
+                    }, exclude_ws=ws)
 
-            # 6. Host changes user role
-            elif msg_type == 'room:change_role':
-                if not current_room or client_info.get('role') != 'host':
-                    continue
-                target_uid = data.get('targetUserId')
-                new_role = data.get('newRole', 'viewer')
-                for ws, info in active_rooms.get(current_room, {}).items():
-                    if info.get('userId') == target_uid:
-                        info['role'] = new_role
-                        await ws.send(json.dumps({
-                            'type': 'role:updated',
-                            'role': new_role
-                        }))
-                await broadcast_to_room(current_room, {
-                    'type': 'users:updated',
-                    'users': get_room_users(current_room)
-                })
+                    print(f"[WS] Client {user_name} ({actual_role}) joined room {room_id}")
 
-            # 7. User updates Google profile (name, email, avatar)
-            elif msg_type == 'user:profile_update':
-                if current_room and websocket in active_rooms.get(current_room, {}):
-                    if data.get('userId'): client_info['userId'] = data.get('userId')
-                    if data.get('userName'): client_info['userName'] = data.get('userName')
-                    if data.get('email'): client_info['email'] = data.get('email')
-                    if data.get('avatar'): client_info['avatar'] = data.get('avatar')
-                    active_rooms[current_room][websocket] = client_info
+                # 2. Canvas Real-time Delta (Strokes, Texts, Cards, Geometries)
+                elif msg_type == 'canvas:delta':
+                    if not current_room or client_info.get('role') == 'viewer':
+                        continue
+                    delta = data.get('delta', {})
+                    await broadcast_to_room(current_room, {
+                        'type': 'canvas:delta',
+                        'senderId': client_info.get('userId'),
+                        'senderName': client_info.get('userName'),
+                        'delta': delta
+                    }, exclude_ws=ws)
+
+                # 3. Canvas Auto-Save Snapshot (Persistent SQLite save)
+                elif msg_type == 'canvas:save_snapshot':
+                    if not current_room or client_info.get('role') == 'viewer':
+                        continue
+                    full_state = data.get('state', {})
+                    room_name = data.get('name')
+                    db_save_canvas_state(current_room, full_state, room_name)
+
+                    await ws.send_str(json.dumps({
+                        'type': 'save:ack',
+                        'status': 'saved',
+                        'timestamp': datetime.now().isoformat()
+                    }))
+
+                # 4. Live Cursor Movement
+                elif msg_type == 'cursor:move':
+                    if not current_room:
+                        continue
+                    await broadcast_to_room(current_room, {
+                        'type': 'cursor:move',
+                        'userId': client_info.get('userId'),
+                        'userName': client_info.get('userName'),
+                        'color': client_info.get('color'),
+                        'x': data.get('x', 0),
+                        'y': data.get('y', 0)
+                    }, exclude_ws=ws)
+
+                # 5. Cursor Leave
+                elif msg_type == 'cursor:leave':
+                    if not current_room:
+                        continue
+                    await broadcast_to_room(current_room, {
+                        'type': 'cursor:leave',
+                        'userId': client_info.get('userId')
+                    }, exclude_ws=ws)
+
+                # 6. Host toggles room lock
+                elif msg_type == 'room:set_lock':
+                    if not current_room or client_info.get('role') != 'host':
+                        continue
+                    is_locked = bool(data.get('isLocked', False))
+                    db_set_room_lock(current_room, is_locked)
+                    await broadcast_to_room(current_room, {
+                        'type': 'room:lock_changed',
+                        'isLocked': is_locked,
+                        'by': client_info.get('userName')
+                    })
+
+                # 7. Host changes user role
+                elif msg_type == 'room:change_role':
+                    if not current_room or client_info.get('role') != 'host':
+                        continue
+                    target_uid = data.get('targetUserId')
+                    new_role = data.get('newRole', 'viewer')
+                    for target_ws, info in active_rooms.get(current_room, {}).items():
+                        if info.get('userId') == target_uid:
+                            info['role'] = new_role
+                            if not target_ws.closed:
+                                await target_ws.send_str(json.dumps({
+                                    'type': 'role:updated',
+                                    'role': new_role
+                                }))
                     await broadcast_to_room(current_room, {
                         'type': 'users:updated',
                         'users': get_room_users(current_room)
                     })
 
-            # 8. Request list of all rooms/padlets (Google Docs dashboard)
-            elif msg_type == 'rooms:list':
-                rooms = db_list_rooms()
-                await websocket.send(json.dumps({
-                    'type': 'rooms:list_response',
-                    'rooms': rooms
-                }))
+                # 8. User profile update (Google name, avatar)
+                elif msg_type == 'user:profile_update':
+                    if current_room and ws in active_rooms.get(current_room, {}):
+                        if data.get('userId'): client_info['userId'] = data.get('userId')
+                        if data.get('userName'): client_info['userName'] = data.get('userName')
+                        if data.get('email'): client_info['email'] = data.get('email')
+                        if data.get('avatar'): client_info['avatar'] = data.get('avatar')
+                        active_rooms[current_room][ws] = client_info
+                        await broadcast_to_room(current_room, {
+                            'type': 'users:updated',
+                            'users': get_room_users(current_room)
+                        })
 
-            # 9. Create a new room
-            elif msg_type == 'room:create':
-                new_room_id = data.get('roomId')
-                new_name = data.get('name', 'Padlet Toán học chưa đặt tên')
-                host_id = data.get('userId', 'u_host')
-                state = data.get('state')
-                if new_room_id:
-                    db_create_room_with_state(new_room_id, new_name, host_id, state)
-                    await websocket.send(json.dumps({
-                        'type': 'room:created',
-                        'roomId': new_room_id,
-                        'name': new_name
+                # 9. Rooms list for Google Docs Dashboard
+                elif msg_type == 'rooms:list':
+                    rooms = db_list_rooms()
+                    await ws.send_str(json.dumps({
+                        'type': 'rooms:list_response',
+                        'rooms': rooms
                     }))
 
-            # 10. Rename room
-            elif msg_type == 'room:rename':
-                target_room = data.get('roomId')
-                new_name = data.get('name')
-                if target_room and new_name:
-                    db_rename_room(target_room, new_name)
-                    await websocket.send(json.dumps({
-                        'type': 'room:renamed',
-                        'roomId': target_room,
-                        'name': new_name
-                    }))
-                    await broadcast_to_room(target_room, {
-                        'type': 'room:name_updated',
-                        'roomId': target_room,
-                        'name': new_name
-                    })
+                # 10. Room Create
+                elif msg_type == 'room:create':
+                    new_room_id = data.get('roomId')
+                    new_name = data.get('name', 'Padlet Toán học chưa đặt tên')
+                    host_id = data.get('userId', 'u_host')
+                    state = data.get('state')
+                    if new_room_id:
+                        db_create_room_with_state(new_room_id, new_name, host_id, state)
+                        await ws.send_str(json.dumps({
+                            'type': 'room:created',
+                            'roomId': new_room_id,
+                            'name': new_name
+                        }))
 
-            # 11. Delete room
-            elif msg_type == 'room:delete':
-                target_room = data.get('roomId')
-                if target_room:
-                    db_delete_room(target_room)
-                    await websocket.send(json.dumps({
-                        'type': 'room:deleted',
-                        'roomId': target_room
-                    }))
+                # 11. Room Rename
+                elif msg_type == 'room:rename':
+                    target_room = data.get('roomId')
+                    new_name = data.get('name')
+                    if target_room and new_name:
+                        db_rename_room(target_room, new_name)
+                        await ws.send_str(json.dumps({
+                            'type': 'room:renamed',
+                            'roomId': target_room,
+                            'name': new_name
+                        }))
+                        await broadcast_to_room(target_room, {
+                            'type': 'room:name_updated',
+                            'roomId': target_room,
+                            'name': new_name
+                        })
 
-            # 12. Duplicate room
-            elif msg_type == 'room:duplicate':
-                src_room = data.get('sourceRoomId')
-                tgt_room = data.get('targetRoomId')
-                new_name = data.get('name', 'Bản sao Padlet')
-                uid = data.get('userId', 'u_host')
-                if src_room and tgt_room:
-                    db_duplicate_room(src_room, tgt_room, new_name, uid)
-                    await websocket.send(json.dumps({
-                        'type': 'room:duplicated',
-                        'roomId': tgt_room,
-                        'name': new_name
-                    }))
+                # 12. Room Delete
+                elif msg_type == 'room:delete':
+                    target_room = data.get('roomId')
+                    if target_room:
+                        db_delete_room(target_room)
+                        await ws.send_str(json.dumps({
+                            'type': 'room:deleted',
+                            'roomId': target_room
+                        }))
 
-    except websockets.exceptions.ConnectionClosed:
-        pass
+                # 13. Room Duplicate
+                elif msg_type == 'room:duplicate':
+                    src_room = data.get('sourceRoomId')
+                    tgt_room = data.get('targetRoomId')
+                    new_name = data.get('name', 'Bản sao Padlet')
+                    uid = data.get('userId', 'u_host')
+                    if src_room and tgt_room:
+                        db_duplicate_room(src_room, tgt_room, new_name, uid)
+                        await ws.send_str(json.dumps({
+                            'type': 'room:duplicated',
+                            'roomId': tgt_room,
+                            'name': new_name
+                        }))
+
+            elif msg.type == WSMsgType.ERROR:
+                print(f"[WS] WebSocket error: {ws.exception()}")
+
+    except Exception as e:
+        print(f"[WS] Connection exception: {e}")
     finally:
         if current_room and current_room in active_rooms:
-            if websocket in active_rooms[current_room]:
-                del active_rooms[current_room][websocket]
-            print(f"[WS] Client {client_info.get('userName')} disconnected from {current_room}")
+            if ws in active_rooms[current_room]:
+                del active_rooms[current_room][ws]
+            print(f"[WS] Client {client_info.get('userName', 'Unknown')} left room {current_room}")
             await broadcast_to_room(current_room, {
                 'type': 'user:left',
                 'userId': client_info.get('userId'),
                 'users': get_room_users(current_room)
             })
 
-async def main():
+    return ws
+
+
+# ================= CORS MIDDLEWARE =================
+@web.middleware
+async def cors_middleware(request, handler):
+    if request.method == 'OPTIONS':
+        response = web.Response(status=204)
+    else:
+        try:
+            response = await handler(request)
+        except web.HTTPException as ex:
+            response = ex
+
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+    return response
+
+
+# ================= ROOT HANDLER =================
+async def index_handler(request):
+    # Default route: serve padlet_ai_mathboard.html
+    padlet_path = BASE_DIR / 'padlet_ai_mathboard.html'
+    if padlet_path.exists():
+        return web.FileResponse(padlet_path)
+    return web.Response(text="MathBoard Padlet Server Ready", content_type="text/plain")
+
+
+# ================= SERVER INITIALIZATION =================
+def create_app():
     init_db()
-    port = 8765
-    print(f"============================================================")
-    print(f"🚀 Padlet Real-Time Collaboration Server running on ws://0.0.0.0:{port}")
-    print(f"💾 SQLite Database: {DB_PATH}")
-    print(f"============================================================")
-    async with serve(handle_connection, "0.0.0.0", port):
-        await asyncio.Future() # run forever
+    app = web.Application(middlewares=[cors_middleware])
+
+    # REST APIs
+    app.router.add_get('/health', api_health)
+    app.router.add_get('/api/health', api_health)
+    app.router.add_get('/api/room', api_get_room)
+    app.router.add_post('/api/room', api_save_room)
+    app.router.add_get('/api/rooms', api_list_rooms)
+    app.router.add_post('/api/room/rename', api_rename_room)
+    app.router.add_post('/api/room/delete', api_delete_room)
+    app.router.add_post('/api/room/duplicate', api_duplicate_room)
+
+    # WebSockets (support both /ws and /ws/)
+    app.router.add_get('/ws', websocket_handler)
+    app.router.add_get('/ws/', websocket_handler)
+
+    # Root route
+    app.router.add_get('/', index_handler)
+
+    # Static files serving for all project assets
+    app.router.add_static('/', path=str(BASE_DIR), show_index=True)
+
+    return app
+
+def main():
+    port = int(os.environ.get("PORT", 8080))
+    host = "0.0.0.0"
+    app = create_app()
+
+    print("============================================================")
+    print("🚀 Padlet AI MathBoard - Unified Web & Collaboration Server")
+    print(f"🌐 Serving on: http://{host}:{port}")
+    print(f"🔄 WebSockets:  ws://{host}:{port}/ws")
+    print(f"💾 SQLite DB:   {DB_PATH}")
+    print("============================================================")
+
+    web.run_app(app, host=host, port=port)
 
 if __name__ == '__main__':
     try:
-        asyncio.run(main())
+        main()
     except KeyboardInterrupt:
         print("\n[Server] Shutting down.")
