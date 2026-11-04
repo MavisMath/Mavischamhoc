@@ -2,10 +2,1169 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0; url=padlet_ai_mathboard.html">
-    <title>Chuyển hướng đến Padlet AI MathBoard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathBoard Padlet - Trang chủ Tài liệu Toán học</title>
+    <!-- Google Fonts & Tailwind CSS & FontAwesome -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Identity Services (GIS) for Google Login -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        body {
+            font-family: 'Roboto', 'Google Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #ffffff;
+            color: #202124;
+        }
+        .google-search-shadow {
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15);
+        }
+        .google-search-focus:focus-within {
+            background-color: #ffffff !important;
+            box-shadow: 0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+        }
+        .template-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .template-card:hover {
+            border-color: #1a73e8;
+            box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+            transform: translateY(-2px);
+        }
+        .doc-card {
+            transition: all 0.2s ease;
+        }
+        .doc-card:hover {
+            border-color: #1a73e8;
+            box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15);
+        }
+    </style>
 </head>
-<body style="font-family: sans-serif; text-align: center; padding-top: 50px;">
-    <p>Đang chuyển hướng đến <a href="padlet_ai_mathboard.html">Padlet AI MathBoard</a>...</p>
+<body class="min-h-screen flex flex-col bg-white">
+
+    <!-- ================= TOP HEADER (GOOGLE DOCS STYLE) ================= -->
+    <header class="sticky top-0 z-40 bg-white border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between gap-4 h-16 shadow-2xs">
+        <!-- Left: Hamburger + App Logo & Title -->
+        <div class="flex items-center gap-3 shrink-0">
+            <button onclick="toggleSideMenu()" class="w-10 h-10 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-600 hover:text-slate-900 transition" title="Menu chính">
+                <i class="fa-solid fa-bars text-lg"></i>
+            </button>
+            <a href="index.html" class="flex items-center gap-2.5 select-none group">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-pink-500/20 text-lg transition transform group-hover:scale-105">
+                    <i class="fa-solid fa-shapes"></i>
+                </div>
+                <div class="hidden sm:block">
+                    <span class="font-['Google_Sans',sans-serif] text-[20px] font-semibold text-slate-800 tracking-tight">MathBoard</span>
+                    <span class="text-xs text-pink-600 font-bold ml-1 px-1.5 py-0.5 bg-pink-50 border border-pink-200 rounded-md">Padlet</span>
+                </div>
+            </a>
+        </div>
+
+        <!-- Center: Search Bar (Google Docs Pill) -->
+        <div class="flex-1 max-w-[720px] mx-2">
+            <div class="google-search-focus relative flex items-center bg-[#f1f3f4] hover:bg-[#e8eaed] rounded-full px-4 py-2.5 transition duration-150">
+                <i class="fa-solid fa-magnifying-glass text-slate-500 text-sm ml-1 mr-3"></i>
+                <input type="text" id="doc-search-input" oninput="handleSearch(this.value)" placeholder="Tìm kiếm bảng Padlet..." class="w-full bg-transparent border-none outline-none text-slate-800 text-sm placeholder-slate-500">
+                <button id="btn-clear-search" onclick="clearSearch()" class="hidden text-slate-400 hover:text-slate-700 w-6 h-6 rounded-full flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark text-sm"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Right: Actions & User Avatar -->
+        <div class="flex items-center gap-2 shrink-0">
+            <!-- Google Apps Grid Icon -->
+            <button class="w-10 h-10 rounded-full hover:bg-slate-100 hidden md:flex items-center justify-center text-slate-600 transition" title="Ứng dụng Google">
+                <i class="fa-solid fa-grip text-base"></i>
+            </button>
+
+            <!-- User Profile Avatar / Sign In Button -->
+            <div id="user-profile-widget" class="relative">
+                <button onclick="toggleUserDropdown()" id="btn-user-avatar" class="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-slate-200 transition">
+                    <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow-xs overflow-hidden">
+                        <span id="user-avatar-initial">GV</span>
+                    </div>
+                </button>
+                <!-- User Profile Dropdown -->
+                <div id="user-dropdown-menu" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div class="flex items-center gap-3 pb-3 border-b border-slate-100">
+                        <div id="dropdown-avatar" class="w-11 h-11 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center overflow-hidden shrink-0">
+                            GV
+                        </div>
+                        <div class="truncate">
+                            <p id="dropdown-user-name" class="font-bold text-slate-800 text-sm truncate">Thầy Nguyễn (GV)</p>
+                            <p id="dropdown-user-email" class="text-xs text-slate-500 truncate">giaovien@gmail.com</p>
+                        </div>
+                    </div>
+                    <div class="mt-3 space-y-1 text-xs">
+                        <button onclick="createNewPadlet()" class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 text-slate-700 font-medium flex items-center gap-2.5 transition">
+                            <i class="fa-solid fa-plus text-pink-600"></i> Tạo bảng Padlet mới
+                        </button>
+                        <button onclick="switchUserPrompt()" class="w-full text-left px-3 py-2 rounded-xl hover:bg-slate-50 text-slate-700 font-medium flex items-center gap-2.5 transition">
+                            <i class="fa-solid fa-user-pen text-blue-600"></i> Đổi tên người dùng / vai trò
+                        </button>
+                        <button onclick="handleLogout()" class="w-full text-left px-3 py-2 rounded-xl hover:bg-rose-50 text-rose-600 font-medium flex items-center gap-2.5 transition">
+                            <i class="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= TEMPLATE GALLERY SECTION (GOOGLE DOCS STYLE) ================= -->
+    <section class="bg-[#f1f3f4] border-b border-[#dadce0] px-4 md:px-10 py-5 transition-all duration-300" id="template-section">
+        <div class="max-w-6xl mx-auto">
+            <!-- Section Header -->
+            <div class="flex items-center justify-between mb-4">
+                <span class="text-sm font-medium text-[#202124]">Bắt đầu một bảng Padlet mới</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleTemplateGallery()" class="text-xs font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-2.5 py-1 rounded-md hover:bg-slate-200/70 transition">
+                        <span>Thư viện mẫu</span>
+                        <i id="template-toggle-icon" class="fa-solid fa-chevron-up text-[10px]"></i>
+                    </button>
+                    <div class="w-[1px] h-4 bg-slate-300 mx-1"></div>
+                    <button class="w-7 h-7 rounded-full hover:bg-slate-200/70 text-slate-500 hover:text-slate-700 flex items-center justify-center transition" title="Tùy chọn">
+                        <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Templates Row -->
+            <div id="template-cards-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+                <!-- 1. BLANK PADLET CARD (AUTHENTIC GOOGLE 4-COLOR PLUS) -->
+                <div onclick="createNewPadlet('blank')" class="cursor-pointer group flex flex-col">
+                    <div class="template-card w-full h-[180px] bg-white rounded-lg border border-[#dadce0] flex items-center justify-center relative overflow-hidden shadow-2xs">
+                        <!-- Google 4-Color Plus SVG -->
+                        <svg class="w-12 h-12 transition transform group-hover:scale-110" viewBox="0 0 48 48">
+                            <path fill="#4285F4" d="M24 10v14H10v4h14v14h4V28h14v-4H28V10z"/>
+                            <path fill="#EA4335" d="M24 24H10v4h14z"/>
+                            <path fill="#FBBC05" d="M24 28v14h4V28z"/>
+                            <path fill="#34A853" d="M28 24h14v4H28z"/>
+                        </svg>
+                    </div>
+                    <span class="mt-2 text-xs font-medium text-[#202124] group-hover:text-blue-600 truncate">Bảng trống</span>
+                    <span class="text-[11px] text-slate-400">Padlet tự do</span>
+                </div>
+
+                <!-- 2. PLANE GEOMETRY TEMPLATE -->
+                <div onclick="createNewPadlet('geometry_circle')" class="cursor-pointer group flex flex-col">
+                    <div class="template-card w-full h-[180px] bg-white rounded-lg border border-[#dadce0] p-3 flex flex-col justify-between relative overflow-hidden shadow-2xs">
+                        <div class="w-full flex-1 bg-gradient-to-br from-pink-50 to-rose-100 rounded-md border border-pink-100 p-2 flex flex-col items-center justify-center text-center">
+                            <i class="fa-regular fa-circle text-2xl text-pink-500 mb-1"></i>
+                            <span class="text-[11px] font-bold text-pink-700">Hình học phẳng</span>
+                            <span class="text-[9px] text-pink-600">Đường tròn & Tiếp tuyến</span>
+                        </div>
+                        <div class="mt-2 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-pink-500"></span>
+                            <span class="text-[10px] text-slate-500 font-semibold truncate">Toán 9 ôn thi vào 10</span>
+                        </div>
+                    </div>
+                    <span class="mt-2 text-xs font-medium text-[#202124] group-hover:text-blue-600 truncate">Hình học phẳng (Đường tròn)</span>
+                    <span class="text-[11px] text-slate-400">Mẫu có sẵn bài giảng</span>
+                </div>
+
+                <!-- 3. ALGEBRA & PARABOLA TEMPLATE -->
+                <div onclick="createNewPadlet('algebra_parabola')" class="cursor-pointer group flex flex-col">
+                    <div class="template-card w-full h-[180px] bg-white rounded-lg border border-[#dadce0] p-3 flex flex-col justify-between relative overflow-hidden shadow-2xs">
+                        <div class="w-full flex-1 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-md border border-blue-100 p-2 flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-chart-line text-2xl text-blue-500 mb-1"></i>
+                            <span class="text-[11px] font-bold text-blue-700">Đại số & Đồ thị Oxy</span>
+                            <span class="text-[9px] text-blue-600">Parabol y = x² & Cắt d</span>
+                        </div>
+                        <div class="mt-2 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            <span class="text-[10px] text-slate-500 font-semibold truncate">Tọa độ & Khảo sát</span>
+                        </div>
+                    </div>
+                    <span class="mt-2 text-xs font-medium text-[#202124] group-hover:text-blue-600 truncate">Đại số & Khảo sát Oxy</span>
+                    <span class="text-[11px] text-slate-400">Mẫu hàm số</span>
+                </div>
+
+                <!-- 4. 3D GEOMETRY TEMPLATE -->
+                <div onclick="createNewPadlet('geometry_3d')" class="cursor-pointer group flex flex-col">
+                    <div class="template-card w-full h-[180px] bg-white rounded-lg border border-[#dadce0] p-3 flex flex-col justify-between relative overflow-hidden shadow-2xs">
+                        <div class="w-full flex-1 bg-gradient-to-br from-emerald-50 to-teal-100 rounded-md border border-emerald-100 p-2 flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-cube text-2xl text-emerald-600 mb-1"></i>
+                            <span class="text-[11px] font-bold text-emerald-800">Hình không gian 3D</span>
+                            <span class="text-[9px] text-emerald-700">Chóp đều S.ABCD</span>
+                        </div>
+                        <div class="mt-2 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                            <span class="text-[10px] text-slate-500 font-semibold truncate">Xoay 360° Three.js</span>
+                        </div>
+                    </div>
+                    <span class="mt-2 text-xs font-medium text-[#202124] group-hover:text-blue-600 truncate">Hình không gian 3D</span>
+                    <span class="text-[11px] text-slate-400">Mẫu mô hình trực quan</span>
+                </div>
+
+                <!-- 5. MATH EXAM WORKSHEET -->
+                <div onclick="createNewPadlet('worksheet')" class="cursor-pointer group flex flex-col">
+                    <div class="template-card w-full h-[180px] bg-white rounded-lg border border-[#dadce0] p-3 flex flex-col justify-between relative overflow-hidden shadow-2xs">
+                        <div class="w-full flex-1 bg-gradient-to-br from-purple-50 to-fuchsia-100 rounded-md border border-purple-100 p-2 flex flex-col items-center justify-center text-center">
+                            <i class="fa-solid fa-file-pen text-2xl text-purple-600 mb-1"></i>
+                            <span class="text-[11px] font-bold text-purple-800">Phiếu bài tập & Đề thi</span>
+                            <span class="text-[9px] text-purple-700">Đề bài & Hướng dẫn giải</span>
+                        </div>
+                        <div class="mt-2 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                            <span class="text-[10px] text-slate-500 font-semibold truncate">Dành cho lớp học</span>
+                        </div>
+                    </div>
+                    <span class="mt-2 text-xs font-medium text-[#202124] group-hover:text-blue-600 truncate">Phiếu bài tập & Đề thi</span>
+                    <span class="text-[11px] text-slate-400">Mẫu giảng bài</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= RECENT DOCUMENTS SECTION (GOOGLE DOCS STYLE) ================= -->
+    <main class="flex-1 px-4 md:px-10 py-6 max-w-6xl mx-auto w-full">
+        <!-- Controls Bar: Title + Owner Filter + View Switcher + Sort -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-200">
+            <!-- Left: Section Title -->
+            <h2 class="text-base font-medium text-[#202124] flex items-center gap-2">
+                <span>Padlet gần đây</span>
+                <span id="doc-count-badge" class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-600">4</span>
+            </h2>
+
+            <!-- Right Controls -->
+            <div class="flex items-center gap-2 text-xs text-slate-600">
+                <!-- Filter by Ownership -->
+                <div class="relative">
+                    <button onclick="toggleOwnerDropdown()" id="btn-owner-filter" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-slate-100 font-medium transition">
+                        <span id="current-owner-label">Do mọi người sở hữu</span>
+                        <i class="fa-solid fa-caret-down text-[10px] text-slate-400"></i>
+                    </button>
+                    <!-- Owner Dropdown -->
+                    <div id="owner-dropdown" class="hidden absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-30">
+                        <button onclick="setOwnerFilter('all')" class="w-full text-left px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 flex items-center justify-between">
+                            <span>Do mọi người sở hữu</span>
+                        </button>
+                        <button onclick="setOwnerFilter('mine')" class="w-full text-left px-3 py-1.5 hover:bg-blue-50 hover:text-blue-600 flex items-center justify-between">
+                            <span>Do tôi sở hữu</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- View Switch: Grid vs List -->
+                <div class="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                    <button onclick="setViewMode('grid')" id="btn-view-grid" class="w-7 h-7 rounded-md bg-white text-blue-600 shadow-2xs flex items-center justify-center transition" title="Chế độ xem dạng lưới">
+                        <i class="fa-solid fa-table-cells-large text-xs"></i>
+                    </button>
+                    <button onclick="setViewMode('list')" id="btn-view-list" class="w-7 h-7 rounded-md text-slate-500 hover:text-slate-800 flex items-center justify-center transition" title="Chế độ xem danh sách">
+                        <i class="fa-solid fa-list text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- Sort Button -->
+                <button onclick="toggleSortOrder()" id="btn-sort" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-600 transition" title="Sắp xếp theo thứ tự chữ cái / thời gian">
+                    <i id="sort-icon" class="fa-solid fa-arrow-down-a-z text-xs"></i>
+                </button>
+
+                <!-- Open / Import JSON File -->
+                <label for="import-json-input" class="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-600 cursor-pointer transition" title="Mở / Nhập tệp Padlet đã lưu (.json)">
+                    <i class="fa-regular fa-folder-open text-xs"></i>
+                    <input type="file" id="import-json-input" accept=".json" onchange="handleImportPadletJson(event)" class="hidden">
+                </label>
+            </div>
+        </div>
+
+        <!-- Documents Container -->
+        <div id="documents-container" class="mt-6">
+            <!-- Grid View (Default) -->
+            <div id="docs-grid-view" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-5">
+                <!-- Injected via JavaScript -->
+            </div>
+
+            <!-- List View (Table) -->
+            <div id="docs-list-view" class="hidden overflow-hidden border border-slate-200 rounded-2xl bg-white shadow-2xs">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+                        <tr>
+                            <th class="py-3 px-4">Tên bảng Padlet</th>
+                            <th class="py-3 px-4 hidden sm:table-cell">Người sở hữu</th>
+                            <th class="py-3 px-4">Lần mở cuối</th>
+                            <th class="py-3 px-4 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="docs-list-tbody" class="divide-y divide-slate-100">
+                        <!-- Injected via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty Search State -->
+            <div id="empty-state" class="hidden text-center py-16">
+                <div class="w-16 h-16 rounded-3xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto text-2xl mb-3">
+                    <i class="fa-solid fa-folder-open"></i>
+                </div>
+                <h3 class="text-base font-semibold text-slate-800">Không tìm thấy bảng Padlet nào</h3>
+                <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Không có bảng nào khớp với từ khóa tìm kiếm của bạn. Hãy thử từ khóa khác hoặc tạo bảng mới!</p>
+                <button onclick="createNewPadlet()" class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md transition">
+                    <i class="fa-solid fa-plus mr-1"></i> Tạo bảng Padlet mới
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Context Menu Modal for Card Options (Rename, Duplicate, Delete) -->
+    <div id="context-modal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 p-5 animate-in fade-in zoom-in-95 duration-150">
+            <h3 id="modal-title" class="font-bold text-slate-900 text-base mb-1">Đổi tên bảng Padlet</h3>
+            <p id="modal-desc" class="text-xs text-slate-500 mb-4">Nhập tên mới cho bảng tài liệu này:</p>
+            <input type="text" id="modal-input" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-medium mb-5">
+            <div class="flex items-center justify-end gap-2 text-xs font-semibold">
+                <button onclick="closeContextModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 transition">Hủy</button>
+                <button id="modal-btn-confirm" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md transition">Lưu thay đổi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-900/90 text-white px-4 py-2.5 rounded-2xl text-xs font-semibold shadow-2xl backdrop-blur-md transform translate-y-20 opacity-0 transition-all duration-300 flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">Thông báo</span>
+    </div>
+
+    <!-- ================= JAVASCRIPT APP LOGIC ================= -->
+    <script>
+        // State variables
+        let padletsList = [];
+        let viewMode = 'grid'; // 'grid' | 'list'
+        let sortOrder = 'updated'; // 'updated' | 'alpha'
+        let ownerFilter = 'all'; // 'all' | 'mine'
+        let searchQuery = '';
+        let currentUser = null;
+        let wsCollab = null;
+
+        // Default Sample Padlets
+        const DEFAULT_PADLETS = [
+            {
+                roomId: 'phong-toan-hoc',
+                name: 'Phòng học Toán 9 - Ôn thi vào 10',
+                hostId: 'u_gv',
+                hostName: 'Thầy Nguyễn (GV)',
+                createdAt: '2026-11-02 06:57:31',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+                strokesCount: 14,
+                cardsCount: 3,
+                preview: '⭕ Đường tròn (O) & Tiếp tuyến PM, PN',
+                themeColor: 'from-pink-500 to-rose-600'
+            },
+            {
+                roomId: 'math-grade9',
+                name: 'Khảo sát hàm số & Parabol Oxy',
+                hostId: 'u_gv',
+                hostName: 'Thầy Nguyễn (GV)',
+                createdAt: '2026-11-02 06:58:16',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+                strokesCount: 6,
+                cardsCount: 2,
+                preview: '📈 Đồ thị Parabol y = x² - 4x + 3',
+                themeColor: 'from-blue-500 to-indigo-600'
+            },
+            {
+                roomId: 'hinh-khong-gian-3d',
+                name: 'Hình học không gian 3D - Khối chóp S.ABCD',
+                hostId: 'u_gv',
+                hostName: 'Thầy Nguyễn (GV)',
+                createdAt: '2026-11-03 10:20:00',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+                strokesCount: 8,
+                cardsCount: 1,
+                preview: '📐 Mô hình 3D Chóp đều S.ABCD xoay 360°',
+                themeColor: 'from-emerald-500 to-teal-600'
+            },
+            {
+                roomId: 'de-thi-thu-toan',
+                name: 'Đề thi thử học kỳ I & Bảng giải chi tiết',
+                hostId: 'u_gv',
+                hostName: 'Thầy Nguyễn (GV)',
+                createdAt: '2026-11-01 14:00:00',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+                strokesCount: 22,
+                cardsCount: 4,
+                preview: '📝 5 bài toán đại số & hình học tổng hợp',
+                themeColor: 'from-purple-500 to-fuchsia-600'
+            }
+        ];
+
+        // Template configurations
+        const TEMPLATES_MAP = {
+            'blank': {
+                name: 'Padlet Toán học chưa đặt tên',
+                state: { strokes: [], padletTexts: [], cards: [], geometryObjects: [], settings: { panX: 40, panY: 40, zoom: 1 } }
+            },
+            'geometry_circle': {
+                name: 'Hình học phẳng - Đường tròn (O) & Tiếp tuyến',
+                state: {
+                    strokes: [],
+                    cards: [{
+                        id: 'card-sample-circle',
+                        type: '2d',
+                        title: '⭕ Đường tròn (O) & Tiếp tuyến',
+                        content: 'Cho đường tròn (O) và điểm A ngoài đường tròn. Kẻ hai tiếp tuyến AB, AC.',
+                        boundingbox: [-7, 5.5, 7, -5.5],
+                        steps: [
+                            { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1' },
+                            { type: 'circle', id: 'circO', center: 'O', radius: 2.6, color: '#ec4899' },
+                            { type: 'point', id: 'A', coords: [-5.2, 0], name: 'A', color: '#ef4444' },
+                            { type: 'point', id: 'B', coords: [-1.3, 2.25], name: 'B', color: '#10b981' },
+                            { type: 'point', id: 'C', coords: [-1.3, -2.25], name: 'C', color: '#10b981' },
+                            { type: 'segment', id: 'AB', points: ['A', 'B'], color: '#2563eb' },
+                            { type: 'segment', id: 'AC', points: ['A', 'C'], color: '#2563eb' }
+                        ]
+                    }],
+                    geometryObjects: [],
+                    settings: { panX: 40, panY: 40, zoom: 1 }
+                }
+            },
+            'algebra_parabola': {
+                name: 'Đại số & Đồ thị Parabol y = x² - 4x + 3',
+                state: {
+                    strokes: [],
+                    cards: [{
+                        id: 'card-sample-parabola',
+                        type: '2d',
+                        title: '📈 Parabol y = x² - 4x + 3',
+                        content: 'Khảo sát và vẽ đồ thị hàm số bậc hai.',
+                        axis: true,
+                        grid: true,
+                        boundingbox: [-3, 7, 7, -3],
+                        steps: [
+                            { type: 'functiongraph', id: 'para', fn: 'x*x - 4*x + 3', range: [-2, 6] }
+                        ]
+                    }],
+                    geometryObjects: [],
+                    settings: { panX: 40, panY: 40, zoom: 1 }
+                }
+            },
+            'geometry_3d': {
+                name: 'Hình học không gian 3D - Chóp tứ giác đều S.ABCD',
+                state: {
+                    strokes: [],
+                    cards: [{
+                        id: 'card-sample-3d',
+                        type: '3d',
+                        shapeType: 'pyramid3d',
+                        title: '📐 Hình chóp đều S.ABCD',
+                        content: 'Khối chóp tứ giác đều có đáy là hình vuông, các cạnh bên bằng nhau.'
+                    }],
+                    geometryObjects: [],
+                    settings: { panX: 40, panY: 40, zoom: 1 }
+                }
+            },
+            'worksheet': {
+                name: 'Phiếu học tập - Ôn tập hình học & đại số',
+                state: {
+                    strokes: [],
+                    cards: [
+                        { id: 'c1', type: 'note', title: 'Bài 1: Rút gọn biểu thức', content: 'Rút gọn biểu thức chứa căn thức bậc hai và tìm giá trị của x.' },
+                        { id: 'c2', type: 'note', title: 'Bài 2: Hệ phương trình', content: 'Giải bài toán bằng cách lập hệ phương trình (Toán chuyển động ca nô).' }
+                    ],
+                    geometryObjects: [],
+                    settings: { panX: 40, panY: 40, zoom: 1 }
+                }
+            }
+        };
+
+        // Initialize application on page load
+        window.onload = function() {
+            initUserIdentity();
+            loadPadletsRegistry();
+            connectCollabWebSocket();
+        };
+
+        // User Identity
+        function initUserIdentity() {
+            try {
+                const stored = localStorage.getItem('mathboard_user') || localStorage.getItem('padlet_google_user');
+                if (stored) currentUser = JSON.parse(stored);
+            } catch (e) {}
+
+            if (!currentUser) {
+                currentUser = {
+                    name: 'Thầy Nguyễn (GV)',
+                    email: 'giaovien@gmail.com',
+                    sub: 'u_gv'
+                };
+            }
+            updateUserUI();
+        }
+
+        function updateUserUI() {
+            const initialEl = document.getElementById('user-avatar-initial');
+            const nameEl = document.getElementById('dropdown-user-name');
+            const emailEl = document.getElementById('dropdown-user-email');
+            const dropAvatar = document.getElementById('dropdown-avatar');
+
+            if (currentUser && currentUser.name) {
+                const parts = currentUser.name.trim().split(' ');
+                const initials = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0].substring(0, 2).toUpperCase();
+                if (initialEl) initialEl.textContent = initials;
+                if (dropAvatar) dropAvatar.textContent = initials;
+                if (nameEl) nameEl.textContent = currentUser.name;
+                if (emailEl) emailEl.textContent = currentUser.email || 'Google Account';
+            }
+        }
+
+        // Connect to WebSocket Server to fetch real-time rooms
+        function connectCollabWebSocket() {
+            try {
+                const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.hostname + ':8765';
+                wsCollab = new WebSocket(wsUrl);
+
+                wsCollab.onopen = function() {
+                    // Request the full rooms list from SQLite
+                    wsCollab.send(JSON.stringify({ type: 'rooms:list' }));
+                };
+
+                wsCollab.onmessage = function(event) {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.type === 'rooms:list_response' && Array.isArray(msg.rooms)) {
+                            mergeServerRooms(msg.rooms);
+                        } else if (msg.type === 'room:created' || msg.type === 'room:duplicated' || msg.type === 'room:renamed' || msg.type === 'room:deleted') {
+                            wsCollab.send(JSON.stringify({ type: 'rooms:list' }));
+                        }
+                    } catch (e) {}
+                };
+
+                wsCollab.onerror = function() {
+                    console.log('[Collab] WebSocket server not reachable, using localStorage cache.');
+                };
+            } catch (e) {}
+        }
+
+        // Load Padlets Registry from LocalStorage and merge with defaults
+        function loadPadletsRegistry() {
+            try {
+                const raw = localStorage.getItem('mathboard_padlet_registry');
+                if (raw) {
+                    padletsList = JSON.parse(raw);
+                }
+            } catch (e) {}
+
+            if (!padletsList || padletsList.length === 0) {
+                padletsList = [...DEFAULT_PADLETS];
+                savePadletsRegistry();
+            }
+            renderPadlets();
+        }
+
+        function savePadletsRegistry() {
+            try {
+                localStorage.setItem('mathboard_padlet_registry', JSON.stringify(padletsList));
+            } catch (e) {}
+        }
+
+        // Merge Server Rooms from SQLite
+        function mergeServerRooms(serverRooms) {
+            const map = new Map();
+            padletsList.forEach(p => map.set(p.roomId, p));
+
+            serverRooms.forEach(sr => {
+                const existing = map.get(sr.roomId);
+                if (existing) {
+                    existing.name = sr.name || existing.name;
+                    existing.updatedAt = sr.updatedAt || existing.updatedAt;
+                    existing.cardsCount = sr.cardsCount !== undefined ? sr.cardsCount : existing.cardsCount;
+                    existing.strokesCount = sr.strokesCount !== undefined ? sr.strokesCount : existing.strokesCount;
+                } else {
+                    map.set(sr.roomId, {
+                        roomId: sr.roomId,
+                        name: sr.name || ('Padlet ' + sr.roomId),
+                        hostId: sr.hostId || 'u_host',
+                        hostName: sr.hostId === currentUser?.sub ? currentUser.name : 'Giáo viên',
+                        createdAt: sr.createdAt || new Date().toISOString(),
+                        updatedAt: sr.updatedAt || new Date().toISOString(),
+                        strokesCount: sr.strokesCount || 0,
+                        cardsCount: sr.cardsCount || 0,
+                        preview: sr.preview || 'Bảng vẽ tự do',
+                        themeColor: getRandomThemeColor()
+                    });
+                }
+            });
+
+            padletsList = Array.from(map.values());
+            savePadletsRegistry();
+            renderPadlets();
+        }
+
+        function getRandomThemeColor() {
+            const colors = [
+                'from-pink-500 to-rose-600',
+                'from-blue-500 to-indigo-600',
+                'from-emerald-500 to-teal-600',
+                'from-purple-500 to-fuchsia-600',
+                'from-amber-500 to-orange-600'
+            ];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Render Padlets into DOM
+        function renderPadlets() {
+            let filtered = padletsList.filter(p => {
+                if (searchQuery) {
+                    const q = searchQuery.toLowerCase();
+                    const matchName = (p.name || '').toLowerCase().includes(q);
+                    const matchPrev = (p.preview || '').toLowerCase().includes(q);
+                    if (!matchName && !matchPrev) return false;
+                }
+                if (ownerFilter === 'mine' && currentUser) {
+                    if (p.hostId && p.hostId !== currentUser.sub) return false;
+                }
+                return true;
+            });
+
+            // Sort
+            if (sortOrder === 'updated') {
+                filtered.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+            } else if (sortOrder === 'alpha') {
+                filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            }
+
+            const badge = document.getElementById('doc-count-badge');
+            if (badge) badge.textContent = filtered.length;
+
+            const gridContainer = document.getElementById('docs-grid-view');
+            const listTbody = document.getElementById('docs-list-tbody');
+            const emptyState = document.getElementById('empty-state');
+
+            if (filtered.length === 0) {
+                gridContainer.classList.add('hidden');
+                document.getElementById('docs-list-view').classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            if (viewMode === 'grid') {
+                gridContainer.classList.remove('hidden');
+                document.getElementById('docs-list-view').classList.add('hidden');
+                gridContainer.innerHTML = filtered.map(p => renderDocCardHTML(p)).join('');
+            } else {
+                gridContainer.classList.add('hidden');
+                document.getElementById('docs-list-view').classList.remove('hidden');
+                listTbody.innerHTML = filtered.map(p => renderDocTableRowHTML(p)).join('');
+            }
+        }
+
+        // Single Card HTML (Google Docs Card)
+        function renderDocCardHTML(p) {
+            const timeStr = formatRelativeTime(p.updatedAt);
+            const theme = p.themeColor || 'from-pink-500 to-rose-600';
+            return `
+                <div onclick="openPadlet('${p.roomId}')" class="doc-card group rounded-xl border border-slate-200/90 hover:border-blue-500 overflow-hidden bg-white shadow-2xs hover:shadow-xl transition-all duration-200 cursor-pointer flex flex-col justify-between">
+                    <!-- Top Visual Thumbnail Preview -->
+                    <div class="h-36 bg-gradient-to-br ${theme} p-4 flex flex-col justify-between text-white relative select-none">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-[10px] font-bold uppercase tracking-wider">Padlet</span>
+                            <span class="text-xs opacity-80"><i class="fa-solid fa-cloud"></i></span>
+                        </div>
+                        <div>
+                            <div class="text-xl mb-1"><i class="fa-solid fa-shapes"></i></div>
+                            <p class="text-xs font-semibold opacity-90 line-clamp-2">${escapeHtml(p.preview || 'Bảng vẽ toán học')}</p>
+                        </div>
+                        <!-- Mini Stats Badge -->
+                        <div class="flex items-center gap-2 text-[10px] opacity-80 font-medium">
+                            <span><i class="fa-solid fa-clone text-[9px]"></i> ${p.cardsCount || 0} thẻ</span>
+                            <span><i class="fa-solid fa-pen-nib text-[9px]"></i> ${p.strokesCount || 0} nét</span>
+                        </div>
+                    </div>
+
+                    <!-- Bottom Metadata Area (Google Docs Style) -->
+                    <div class="p-3 bg-white border-t border-slate-100 flex items-center justify-between gap-2">
+                        <div class="truncate flex-1">
+                            <h4 class="font-bold text-slate-800 text-xs truncate group-hover:text-blue-600 transition" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h4>
+                            <div class="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
+                                <i class="fa-solid fa-file-lines text-blue-500 text-[10px]"></i>
+                                <span>Đã mở ${timeStr}</span>
+                            </div>
+                        </div>
+
+                        <!-- 3-Dots Action Menu Button -->
+                        <div class="relative shrink-0" onclick="event.stopPropagation()">
+                            <button onclick="toggleCardMenu(event, '${p.roomId}')" class="w-7 h-7 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition">
+                                <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+                            </button>
+                            <!-- Dropdown Menu -->
+                            <div id="card-menu-${p.roomId}" class="hidden absolute right-0 bottom-8 w-44 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-40 text-xs font-medium text-slate-700 animate-in fade-in zoom-in-95 duration-100">
+                                <button onclick="renamePadletPrompt('${p.roomId}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition">
+                                    <i class="fa-solid fa-pen-to-square text-blue-500"></i> Đổi tên
+                                </button>
+                                <button onclick="duplicatePadlet('${p.roomId}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition">
+                                    <i class="fa-solid fa-copy text-indigo-500"></i> Tạo bản sao
+                                </button>
+                                <button onclick="copyPadletLink('${p.roomId}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition">
+                                    <i class="fa-solid fa-share-nodes text-emerald-500"></i> Sao chép liên kết
+                                </button>
+                                <div class="my-1 border-t border-slate-100"></div>
+                                <button onclick="deletePadletPrompt('${p.roomId}')" class="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2 transition">
+                                    <i class="fa-solid fa-trash-can"></i> Xóa bảng này
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Single Table Row HTML (List View)
+        function renderDocTableRowHTML(p) {
+            const timeStr = formatRelativeTime(p.updatedAt);
+            return `
+                <tr onclick="openPadlet('${p.roomId}')" class="hover:bg-blue-50/50 cursor-pointer transition">
+                    <td class="py-3 px-4 font-bold text-slate-800 flex items-center gap-3">
+                        <i class="fa-solid fa-file-lines text-blue-600 text-sm"></i>
+                        <span class="hover:text-blue-600 transition truncate max-w-sm">${escapeHtml(p.name)}</span>
+                    </td>
+                    <td class="py-3 px-4 text-slate-500 hidden sm:table-cell">${escapeHtml(p.hostName || 'Tôi')}</td>
+                    <td class="py-3 px-4 text-slate-500">${timeStr}</td>
+                    <td class="py-3 px-4 text-right" onclick="event.stopPropagation()">
+                        <div class="relative inline-block text-left">
+                            <button onclick="toggleCardMenu(event, '${p.roomId}')" class="w-7 h-7 rounded-full hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+                                <i class="fa-solid fa-ellipsis-vertical text-xs"></i>
+                            </button>
+                            <div id="card-menu-${p.roomId}" class="hidden absolute right-0 mt-1 w-44 bg-white rounded-xl shadow-2xl border border-slate-200 py-1.5 z-40 text-xs font-medium text-slate-700">
+                                <button onclick="renamePadletPrompt('${p.roomId}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2">
+                                    <i class="fa-solid fa-pen-to-square text-blue-500"></i> Đổi tên
+                                </button>
+                                <button onclick="duplicatePadlet('${p.roomId}')" class="w-full text-left px-3.5 py-2 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2">
+                                    <i class="fa-solid fa-copy text-indigo-500"></i> Tạo bản sao
+                                </button>
+                                <button onclick="deletePadletPrompt('${p.roomId}')" class="w-full text-left px-3.5 py-2 hover:bg-rose-50 text-rose-600 flex items-center gap-2">
+                                    <i class="fa-solid fa-trash-can"></i> Xóa bảng
+                                </button>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // ================= ACTIONS & WORKFLOWS =================
+
+        // 1. Open Padlet Workspace
+        function openPadlet(roomId) {
+            // Update last opened timestamp
+            const p = padletsList.find(item => item.roomId === roomId);
+            if (p) {
+                p.updatedAt = new Date().toISOString();
+                savePadletsRegistry();
+            }
+            window.location.href = `padlet_ai_mathboard.html?room=${encodeURIComponent(roomId)}`;
+        }
+
+        // 2. Create New Padlet (from Blank or Template)
+        function createNewPadlet(templateKey = 'blank') {
+            const template = TEMPLATES_MAP[templateKey] || TEMPLATES_MAP['blank'];
+            const newRoomId = 'padlet-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+            const title = template.name;
+
+            const newPadlet = {
+                roomId: newRoomId,
+                name: title,
+                hostId: currentUser ? currentUser.sub : 'u_gv',
+                hostName: currentUser ? currentUser.name : 'Thầy Nguyễn (GV)',
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                strokesCount: template.state?.strokes?.length || 0,
+                cardsCount: template.state?.cards?.length || 0,
+                preview: template.state?.cards?.[0]?.title || 'Bảng vẽ mới',
+                themeColor: getRandomThemeColor()
+            };
+
+            // Save in Registry
+            padletsList.unshift(newPadlet);
+            savePadletsRegistry();
+
+            // Save state in LocalStorage for instant render in workspace
+            if (template.state) {
+                try {
+                    localStorage.setItem('padlet_state_' + newRoomId, JSON.stringify(template.state));
+                } catch (e) {}
+            }
+
+            // Sync with Server over WebSocket
+            if (wsCollab && wsCollab.readyState === WebSocket.OPEN) {
+                wsCollab.send(JSON.stringify({
+                    type: 'room:create',
+                    roomId: newRoomId,
+                    name: title,
+                    userId: currentUser?.sub || 'u_gv',
+                    state: template.state
+                }));
+            }
+
+            showToast(`✨ Đã tạo bảng mới: ${title}`);
+
+            // Navigate immediately to the new Padlet
+            setTimeout(() => {
+                window.location.href = `padlet_ai_mathboard.html?room=${encodeURIComponent(newRoomId)}`;
+            }, 300);
+        }
+
+        // 3. Rename Padlet
+        function renamePadletPrompt(roomId) {
+            closeAllMenus();
+            const p = padletsList.find(item => item.roomId === roomId);
+            if (!p) return;
+
+            openContextModal({
+                title: 'Đổi tên bảng Padlet',
+                desc: 'Nhập tên mới cho bảng tài liệu này:',
+                value: p.name,
+                btnText: 'Lưu thay đổi',
+                onConfirm: (newName) => {
+                    if (!newName || !newName.trim()) return;
+                    p.name = newName.trim();
+                    p.updatedAt = new Date().toISOString();
+                    savePadletsRegistry();
+                    renderPadlets();
+
+                    if (wsCollab && wsCollab.readyState === WebSocket.OPEN) {
+                        wsCollab.send(JSON.stringify({
+                            type: 'room:rename',
+                            roomId: roomId,
+                            name: p.name
+                        }));
+                    }
+                    showToast(`✏️ Đã đổi tên thành: "${p.name}"`);
+                }
+            });
+        }
+
+        // 4. Duplicate Padlet
+        function duplicatePadlet(roomId) {
+            closeAllMenus();
+            const src = padletsList.find(item => item.roomId === roomId);
+            if (!src) return;
+
+            const dupId = 'padlet-' + Date.now().toString(36) + '-' + Math.random().toString(36).substring(2, 6);
+            const dupName = `Bản sao của ${src.name}`;
+
+            const duplicated = {
+                ...src,
+                roomId: dupId,
+                name: dupName,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                themeColor: getRandomThemeColor()
+            };
+
+            padletsList.unshift(duplicated);
+            savePadletsRegistry();
+
+            // Clone localStorage state
+            try {
+                const srcState = localStorage.getItem('padlet_state_' + roomId);
+                if (srcState) localStorage.setItem('padlet_state_' + dupId, srcState);
+            } catch (e) {}
+
+            if (wsCollab && wsCollab.readyState === WebSocket.OPEN) {
+                wsCollab.send(JSON.stringify({
+                    type: 'room:duplicate',
+                    sourceRoomId: roomId,
+                    targetRoomId: dupId,
+                    name: dupName,
+                    userId: currentUser?.sub || 'u_gv'
+                }));
+            }
+
+            renderPadlets();
+            showToast(`📋 Đã tạo bản sao: "${dupName}"`);
+        }
+
+        // 5. Delete Padlet
+        function deletePadletPrompt(roomId) {
+            closeAllMenus();
+            const p = padletsList.find(item => item.roomId === roomId);
+            if (!p) return;
+
+            if (confirm(`Bạn có chắc chắn muốn xóa bảng "${p.name}" không?`)) {
+                padletsList = padletsList.filter(item => item.roomId !== roomId);
+                savePadletsRegistry();
+
+                try {
+                    localStorage.removeItem('padlet_state_' + roomId);
+                } catch (e) {}
+
+                if (wsCollab && wsCollab.readyState === WebSocket.OPEN) {
+                    wsCollab.send(JSON.stringify({
+                        type: 'room:delete',
+                        roomId: roomId
+                    }));
+                }
+
+                renderPadlets();
+                showToast(`🗑️ Đã xóa bảng: "${p.name}"`);
+            }
+        }
+
+        // 6. Copy Padlet Link
+        function copyPadletLink(roomId) {
+            closeAllMenus();
+            const url = `${window.location.origin}/padlet_ai_mathboard.html?room=${encodeURIComponent(roomId)}`;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('🔗 Đã sao chép liên kết bảng vào bộ nhớ tạm!');
+            }).catch(() => {
+                prompt('Sao chép liên kết này:', url);
+            });
+        }
+
+        // 7. Import JSON File Backup into a New Padlet
+        function handleImportPadletJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const newRoomId = 'padlet-imported-' + Date.now().toString(36);
+                    const title = (file.name.replace(/\.[^/.]+$/, "") || 'Bảng Padlet nhập từ file');
+
+                    const newPadlet = {
+                        roomId: newRoomId,
+                        name: title,
+                        hostId: currentUser?.sub || 'u_gv',
+                        hostName: currentUser?.name || 'Thầy Nguyễn (GV)',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        strokesCount: data.strokes?.length || 0,
+                        cardsCount: data.cards?.length || 0,
+                        preview: data.cards?.[0]?.title || 'Tệp đã nhập',
+                        themeColor: getRandomThemeColor()
+                    };
+
+                    padletsList.unshift(newPadlet);
+                    savePadletsRegistry();
+
+                    try {
+                        localStorage.setItem('padlet_state_' + newRoomId, JSON.stringify(data));
+                    } catch (err) {}
+
+                    if (wsCollab && wsCollab.readyState === WebSocket.OPEN) {
+                        wsCollab.send(JSON.stringify({
+                            type: 'room:create',
+                            roomId: newRoomId,
+                            name: title,
+                            userId: currentUser?.sub || 'u_gv',
+                            state: data
+                        }));
+                    }
+
+                    renderPadlets();
+                    showToast(`📂 Đã nhập thành công bảng "${title}"!`);
+                    openPadlet(newRoomId);
+                } catch (parseErr) {
+                    alert('Tệp JSON không hợp lệ hoặc bị lỗi!');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ================= SEARCH & FILTERS =================
+        function handleSearch(val) {
+            searchQuery = val.trim();
+            const btnClear = document.getElementById('btn-clear-search');
+            if (btnClear) {
+                if (searchQuery) btnClear.classList.remove('hidden');
+                else btnClear.classList.add('hidden');
+            }
+            renderPadlets();
+        }
+
+        function clearSearch() {
+            searchQuery = '';
+            const input = document.getElementById('doc-search-input');
+            if (input) input.value = '';
+            document.getElementById('btn-clear-search').classList.add('hidden');
+            renderPadlets();
+        }
+
+        function setViewMode(mode) {
+            viewMode = mode;
+            const btnGrid = document.getElementById('btn-view-grid');
+            const btnList = document.getElementById('btn-view-list');
+            if (mode === 'grid') {
+                btnGrid.className = 'w-7 h-7 rounded-md bg-white text-blue-600 shadow-2xs flex items-center justify-center transition';
+                btnList.className = 'w-7 h-7 rounded-md text-slate-500 hover:text-slate-800 flex items-center justify-center transition';
+            } else {
+                btnList.className = 'w-7 h-7 rounded-md bg-white text-blue-600 shadow-2xs flex items-center justify-center transition';
+                btnGrid.className = 'w-7 h-7 rounded-md text-slate-500 hover:text-slate-800 flex items-center justify-center transition';
+            }
+            renderPadlets();
+        }
+
+        function toggleSortOrder() {
+            sortOrder = (sortOrder === 'updated') ? 'alpha' : 'updated';
+            const icon = document.getElementById('sort-icon');
+            if (icon) {
+                icon.className = (sortOrder === 'updated') ? 'fa-solid fa-clock-rotate-left text-xs' : 'fa-solid fa-arrow-down-a-z text-xs';
+            }
+            showToast(sortOrder === 'updated' ? 'Sắp xếp theo lần mở gần nhất' : 'Sắp xếp theo thứ tự chữ cái A-Z');
+            renderPadlets();
+        }
+
+        function setOwnerFilter(filter) {
+            ownerFilter = filter;
+            const label = document.getElementById('current-owner-label');
+            if (label) {
+                label.textContent = (filter === 'mine') ? 'Do tôi sở hữu' : 'Do mọi người sở hữu';
+            }
+            document.getElementById('owner-dropdown').classList.add('hidden');
+            renderPadlets();
+        }
+
+        function toggleOwnerDropdown() {
+            const el = document.getElementById('owner-dropdown');
+            if (el) el.classList.toggle('hidden');
+        }
+
+        function toggleUserDropdown() {
+            const el = document.getElementById('user-dropdown-menu');
+            if (el) el.classList.toggle('hidden');
+        }
+
+        function toggleCardMenu(event, roomId) {
+            event.stopPropagation();
+            const allMenus = document.querySelectorAll('[id^="card-menu-"]');
+            allMenus.forEach(m => {
+                if (m.id !== `card-menu-${roomId}`) m.classList.add('hidden');
+            });
+            const menu = document.getElementById(`card-menu-${roomId}`);
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        function closeAllMenus() {
+            document.querySelectorAll('[id^="card-menu-"]').forEach(m => m.classList.add('hidden'));
+            const userMenu = document.getElementById('user-dropdown-menu');
+            if (userMenu) userMenu.classList.add('hidden');
+            const ownerMenu = document.getElementById('owner-dropdown');
+            if (ownerMenu) ownerMenu.classList.add('hidden');
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('[id^="card-menu-"]') && !e.target.closest('#user-dropdown-menu') && !e.target.closest('#owner-dropdown')) {
+                closeAllMenus();
+            }
+        });
+
+        function toggleTemplateGallery() {
+            const container = document.getElementById('template-cards-container');
+            const icon = document.getElementById('template-toggle-icon');
+            if (container) {
+                container.classList.toggle('hidden');
+                if (icon) {
+                    icon.className = container.classList.contains('hidden') ? 'fa-solid fa-chevron-down text-[10px]' : 'fa-solid fa-chevron-up text-[10px]';
+                }
+            }
+        }
+
+        // ================= CONTEXT MODAL =================
+        let modalConfirmCallback = null;
+
+        function openContextModal(opts) {
+            const modal = document.getElementById('context-modal');
+            const titleEl = document.getElementById('modal-title');
+            const descEl = document.getElementById('modal-desc');
+            const inputEl = document.getElementById('modal-input');
+            const btnEl = document.getElementById('modal-btn-confirm');
+
+            if (titleEl) titleEl.textContent = opts.title || 'Xác nhận';
+            if (descEl) descEl.textContent = opts.desc || '';
+            if (inputEl) {
+                inputEl.value = opts.value || '';
+                setTimeout(() => inputEl.focus(), 100);
+            }
+            if (btnEl) btnEl.textContent = opts.btnText || 'Xác nhận';
+
+            modalConfirmCallback = opts.onConfirm;
+            btnEl.onclick = function() {
+                if (modalConfirmCallback) modalConfirmCallback(inputEl.value);
+                closeContextModal();
+            };
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeContextModal() {
+            const modal = document.getElementById('context-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // Switch User Prompt
+        function switchUserPrompt() {
+            const name = prompt('Nhập tên hiển thị của bạn (Ví dụ: Thầy Nguyễn, Cô Mai, Minh Anh):', currentUser?.name || '');
+            if (name && name.trim()) {
+                currentUser = {
+                    ...currentUser,
+                    name: name.trim(),
+                    email: name.trim().toLowerCase().replace(/\s+/g, '') + '@gmail.com'
+                };
+                try {
+                    localStorage.setItem('mathboard_user', JSON.stringify(currentUser));
+                    localStorage.setItem('padlet_user_name', currentUser.name);
+                } catch (e) {}
+                updateUserUI();
+                showToast(`👤 Đã cập nhật người dùng: ${currentUser.name}`);
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('mathboard_user');
+            localStorage.removeItem('padlet_google_user');
+            currentUser = { name: 'Khách', email: 'guest@mathboard.local', sub: 'u_guest' };
+            updateUserUI();
+            showToast('Đã đăng xuất tài khoản');
+        }
+
+        function toggleSideMenu() {
+            showToast('💡 Đang xem Thư mục chính: Tất cả bảng Padlet Toán học');
+        }
+
+        // Toast Helper
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-msg');
+            if (!toast || !msgEl) return;
+            msgEl.textContent = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // Utility: relative time formatter
+        function formatRelativeTime(isoStr) {
+            if (!isoStr) return 'Gần đây';
+            const date = new Date(isoStr);
+            const now = new Date();
+            const diffSec = Math.floor((now - date) / 1000);
+
+            if (diffSec < 60) return 'Vừa xong';
+            if (diffSec < 3600) return `${Math.floor(diffSec / 60)} phút trước`;
+            if (diffSec < 86400) return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            return `${date.getDate()} thg ${date.getMonth() + 1}`;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+    </script>
 </body>
 </html>

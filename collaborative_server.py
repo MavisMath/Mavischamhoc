@@ -48,14 +48,15 @@ def init_db():
 def db_get_or_create_room(room_id, user_id, user_name, requested_role):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute('SELECT host_id, is_locked FROM rooms WHERE room_id = ?', (room_id,))
+    cur.execute('SELECT host_id, is_locked, name FROM rooms WHERE room_id = ?', (room_id,))
     row = cur.fetchone()
     
     if not row:
         # First user is Host by default
         actual_role = 'host'
+        room_name = f"Phòng {room_id}"
         cur.execute('INSERT INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, ?)',
-                    (room_id, f"Phòng {room_id}", user_id, 0))
+                    (room_id, room_name, user_id, 0))
         # Initialize empty canvas state
         empty_state = json.dumps({
             "strokes": [],
@@ -69,7 +70,7 @@ def db_get_or_create_room(room_id, user_id, user_name, requested_role):
         conn.commit()
         is_locked = 0
     else:
-        host_id, is_locked = row
+        host_id, is_locked, room_name = row
         if user_id == host_id:
             actual_role = 'host'
         elif is_locked and requested_role != 'host':
@@ -78,7 +79,7 @@ def db_get_or_create_room(room_id, user_id, user_name, requested_role):
             actual_role = requested_role if requested_role in ('editor', 'viewer') else 'editor'
             
     conn.close()
-    return actual_role, bool(is_locked)
+    return actual_role, bool(is_locked), (room_name or f"Phòng {room_id}")
 
 def db_get_canvas_state(room_id):
     conn = sqlite3.connect(DB_PATH)
@@ -119,6 +120,88 @@ def db_set_room_lock(room_id, is_locked):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute('UPDATE rooms SET is_locked = ? WHERE room_id = ?', (1 if is_locked else 0, room_id))
+    conn.commit()
+    conn.close()
+
+def db_list_rooms():
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute('''
+        SELECT r.room_id, r.name, r.host_id, r.is_locked, r.created_at, r.updated_at, cs.state_json
+        FROM rooms r
+        LEFT JOIN canvas_states cs ON r.room_id = cs.room_id
+        ORDER BY r.updated_at DESC
+    ''')
+    rooms = []
+    for row in cur.fetchall():
+        r_id, name, host_id, is_locked, created_at, updated_at, state_json = row
+        strokes_cnt = 0
+        cards_cnt = 0
+        preview_shapes = []
+        if state_json:
+            try:
+                st = json.loads(state_json)
+                strokes_cnt = len(st.get('strokes', []))
+                cards_cnt = len(st.get('cards', []))
+                for c in st.get('cards', [])[:2]:
+                    if c.get('title'): preview_shapes.append(c.get('title'))
+            except Exception:
+                pass
+        rooms.append({
+            'roomId': r_id,
+            'name': name or f"Padlet {r_id}",
+            'hostId': host_id,
+            'isLocked': bool(is_locked),
+            'createdAt': created_at,
+            'updatedAt': updated_at,
+            'strokesCount': strokes_cnt,
+            'cardsCount': cards_cnt,
+            'preview': ", ".join(preview_shapes) if preview_shapes else "Bảng vẽ tự do"
+        })
+    conn.close()
+    return rooms
+
+def db_rename_room(room_id, new_name):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute('UPDATE rooms SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE room_id = ?', (new_name, room_id))
+    conn.commit()
+    conn.close()
+
+def db_delete_room(room_id):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute('DELETE FROM canvas_states WHERE room_id = ?', (room_id,))
+    cur.execute('DELETE FROM rooms WHERE room_id = ?', (room_id,))
+    conn.commit()
+    conn.close()
+
+def db_duplicate_room(src_id, target_id, new_name, host_id='u_host'):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute('SELECT state_json FROM canvas_states WHERE room_id = ?', (src_id,))
+    row = cur.fetchone()
+    state_json = row[0] if row else json.dumps({
+        "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "settings": {"panX": 40, "panY": 40, "zoom": 1}
+    })
+    cur.execute('INSERT INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, 0)',
+                (target_id, new_name, host_id))
+    cur.execute('INSERT INTO canvas_states (room_id, version, state_json) VALUES (?, 1, ?)',
+                (target_id, state_json))
+    conn.commit()
+    conn.close()
+
+def db_create_room_with_state(room_id, name, host_id, state_dict=None):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute('INSERT OR REPLACE INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, 0)',
+                (room_id, name, host_id))
+    if state_dict is None:
+        state_dict = {
+            "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "settings": {"panX": 40, "panY": 40, "zoom": 1}
+        }
+    cur.execute('INSERT OR REPLACE INTO canvas_states (room_id, version, state_json) VALUES (?, 1, ?)',
+                (room_id, json.dumps(state_dict)))
     conn.commit()
     conn.close()
 
@@ -182,7 +265,7 @@ async def handle_connection(websocket):
                 color = data.get('color', '#3b82f6')
 
                 current_room = room_id
-                actual_role, is_locked = db_get_or_create_room(room_id, user_id, user_name, requested_role)
+                actual_role, is_locked, room_name = db_get_or_create_room(room_id, user_id, user_name, requested_role)
                 
                 client_info = {
                     'userId': user_id,
@@ -200,10 +283,11 @@ async def handle_connection(websocket):
                 # Fetch persisted state from SQLite
                 canvas_state = db_get_canvas_state(room_id)
 
-                # Send initial state and confirmed role to joining client
+                # Send initial state, room name, and confirmed role to joining client
                 await websocket.send(json.dumps({
                     'type': 'room:init',
                     'roomId': room_id,
+                    'roomName': room_name,
                     'role': actual_role,
                     'isLocked': is_locked,
                     'state': canvas_state,
@@ -306,6 +390,69 @@ async def handle_connection(websocket):
                         'type': 'users:updated',
                         'users': get_room_users(current_room)
                     })
+
+            # 8. Request list of all rooms/padlets (Google Docs dashboard)
+            elif msg_type == 'rooms:list':
+                rooms = db_list_rooms()
+                await websocket.send(json.dumps({
+                    'type': 'rooms:list_response',
+                    'rooms': rooms
+                }))
+
+            # 9. Create a new room
+            elif msg_type == 'room:create':
+                new_room_id = data.get('roomId')
+                new_name = data.get('name', 'Padlet Toán học chưa đặt tên')
+                host_id = data.get('userId', 'u_host')
+                state = data.get('state')
+                if new_room_id:
+                    db_create_room_with_state(new_room_id, new_name, host_id, state)
+                    await websocket.send(json.dumps({
+                        'type': 'room:created',
+                        'roomId': new_room_id,
+                        'name': new_name
+                    }))
+
+            # 10. Rename room
+            elif msg_type == 'room:rename':
+                target_room = data.get('roomId')
+                new_name = data.get('name')
+                if target_room and new_name:
+                    db_rename_room(target_room, new_name)
+                    await websocket.send(json.dumps({
+                        'type': 'room:renamed',
+                        'roomId': target_room,
+                        'name': new_name
+                    }))
+                    await broadcast_to_room(target_room, {
+                        'type': 'room:name_updated',
+                        'roomId': target_room,
+                        'name': new_name
+                    })
+
+            # 11. Delete room
+            elif msg_type == 'room:delete':
+                target_room = data.get('roomId')
+                if target_room:
+                    db_delete_room(target_room)
+                    await websocket.send(json.dumps({
+                        'type': 'room:deleted',
+                        'roomId': target_room
+                    }))
+
+            # 12. Duplicate room
+            elif msg_type == 'room:duplicate':
+                src_room = data.get('sourceRoomId')
+                tgt_room = data.get('targetRoomId')
+                new_name = data.get('name', 'Bản sao Padlet')
+                uid = data.get('userId', 'u_host')
+                if src_room and tgt_room:
+                    db_duplicate_room(src_room, tgt_room, new_name, uid)
+                    await websocket.send(json.dumps({
+                        'type': 'room:duplicated',
+                        'roomId': tgt_room,
+                        'name': new_name
+                    }))
 
     except websockets.exceptions.ConnectionClosed:
         pass

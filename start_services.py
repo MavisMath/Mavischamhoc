@@ -10,16 +10,16 @@ import time
 def main():
     print("==================================================")
     print("🚀 Đang khởi động hệ thống Padlet AI MathBoard...")
-    print("🌐 Web App:    http://localhost:8080")
-    print("🔄 WebSocket:  ws://localhost:8765")
+    print("🌐 Trang chủ (Google Docs Hub): http://localhost:8080")
+    print("🔄 WebSocket Sync Server:       ws://localhost:8765")
     print("==================================================")
 
     # Khởi động WebSocket Server
     p_ws = subprocess.Popen([sys.executable, "collaborative_server.py"])
     time.sleep(0.5)
 
-    # Khởi động HTTP Web Server
-    p_http = subprocess.Popen([sys.executable, "-m", "http.server", "8080"])
+    # Khởi động HTTP Web Server (Threaded để phục vụ mượt mà nhiều client)
+    p_http = subprocess.Popen([sys.executable, "scripts/run_http_server.py"])
 
     try:
         p_ws.wait()

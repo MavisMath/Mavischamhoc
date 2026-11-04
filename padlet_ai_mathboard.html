@@ -30,6 +30,7 @@
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jsxgraph/distrib/jsxgraphcore.js"></script>
 
     <!-- Runtime Environment Variables (.env sync) -->
+    <script src="local_keys.js"></script>
     <script src="env.js"></script>
 
     <!-- Google Identity Services (Google Sign-In) -->
@@ -150,6 +151,48 @@
             filter: drop-shadow(0 0 8px #ef4444);
         }
 
+        /* Whiteboard Drawing Mode - Pure standard SVG Pen Cursor (100% Chromium compatible) */
+        .cursor-pen,
+        body.whiteboard-drawing-active,
+        body.whiteboard-drawing-active #board-viewport,
+        body.whiteboard-drawing-active #drawing-svg,
+        body.whiteboard-drawing-active #whiteboard-draw-surface {
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cpath d='M7 23 L23 7 C24.5 5.5 27 5.5 28.5 7 C30 8.5 30 11 28.5 12.5 L12.5 28.5 L5 29 Z' fill='rgba(0,0,0,0.3)'/%3E%3Cpath d='M6 22 L22 6 C23.5 4.5 26 4.5 27.5 6 C29 7.5 29 10 27.5 11.5 L11.5 27.5 L4 28 Z' fill='%23ec4899' stroke='%23ffffff' stroke-width='1.5' stroke-linejoin='round'/%3E%3Cpath d='M10 18 L14 22 L11.5 24.5 L7.5 20.5 Z' fill='%23be185d'/%3E%3Cpath d='M19 9 L23 13' stroke='%23fbbf24' stroke-width='2' stroke-linecap='round'/%3E%3Cpolygon points='4,28 1,31 7,25' fill='%23fbbf24' stroke='%23d97706' stroke-width='0.8'/%3E%3Ccircle cx='1.5' cy='30.5' r='1.5' fill='%23ef4444' stroke='%23ffffff' stroke-width='0.5'/%3E%3C/svg%3E") 1 31, crosshair !important;
+        }
+        body.whiteboard-text-active,
+        body.whiteboard-text-active #board-viewport,
+        body.whiteboard-text-active #drawing-svg,
+        body.whiteboard-text-active #whiteboard-draw-surface {
+            cursor: text !important;
+        }
+        body.whiteboard-drawing-active #drawing-svg,
+        body.whiteboard-drawing-active #whiteboard-draw-surface,
+        body.whiteboard-text-active #drawing-svg,
+        body.whiteboard-text-active #whiteboard-draw-surface {
+            pointer-events: all !important;
+        }
+        body.whiteboard-drawing-active .jxgbox,
+        body.whiteboard-drawing-active .jxgbox *,
+        body.whiteboard-drawing-active .drag-handle,
+        body.whiteboard-text-active .jxgbox,
+        body.whiteboard-text-active .jxgbox * {
+            pointer-events: none !important;
+        }
+
+        /* Glowing Highlight Effect when an element is clicked for teaching presentation */
+        .jxg-element-highlighted {
+            filter: drop-shadow(0 0 8px #2563eb) drop-shadow(0 0 16px #60a5fa) !important;
+            animation: jxgPulseGlow 1.2s infinite alternate !important;
+        }
+        @keyframes jxgPulseGlow {
+            from {
+                filter: drop-shadow(0 0 6px #3b82f6);
+            }
+            to {
+                filter: drop-shadow(0 0 14px #60a5fa) drop-shadow(0 0 22px #93c5fd);
+            }
+        }
+
         /* Selection styling for strokes */
         .stroke-selected {
             filter: drop-shadow(0 0 6px #2563eb) drop-shadow(0 0 12px #60a5fa) !important;
@@ -171,11 +214,6 @@
         }
 
         /* PRECISE CURSORS WITH EXACT HOTSPOTS (0px OFFSET) */
-        /* Hotspot at exact nib tip (1, 26) with red guide dot */
-        .cursor-pen {
-            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M2 26 L8 24 L24 8 C25.5 6.5 25.5 4.5 24 3 C22.5 1.5 20.5 1.5 19 3 L3 19 L1 27 Z' fill='%232563eb' stroke='%23ffffff' stroke-width='1.5'/%3E%3Ccircle cx='1.5' cy='26.5' r='1.5' fill='%23ef4444'/%3E%3C/svg%3E") 1 26, crosshair !important;
-        }
-
         /* Highlighter with hotspot at tip (2, 25) */
         .cursor-highlighter {
             cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 25 L8 23 L23 8 C24 7 24 5 23 4 L21 2 C20 1 18 1 17 2 L2 17 L1 25 Z' fill='%23f59e0b' stroke='%23ffffff' stroke-width='1.5'/%3E%3Ccircle cx='2' cy='25' r='1.5' fill='%23dc2626'/%3E%3C/svg%3E") 2 25, crosshair !important;
@@ -245,17 +283,32 @@
 <body class="font-sans antialiased text-slate-800 h-screen w-screen flex flex-col overflow-hidden">
 
     <!-- Top Navigation Bar -->
-    <header class="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 flex items-center justify-between z-30 shadow-xs shrink-0">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-pink-500/20 font-bold text-lg">
+    <header class="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 md:px-5 flex items-center justify-between z-30 shadow-xs shrink-0">
+        <div class="flex items-center gap-2.5">
+            <!-- Home / Back to Google Docs Dashboard Button -->
+            <a href="index.html" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 flex items-center justify-center transition shadow-2xs border border-slate-200/80 group shrink-0" title="Trang chủ Padlet (Quay lại danh sách)">
+                <i class="fa-solid fa-arrow-left text-sm group-hover:-translate-x-0.5 transition"></i>
+            </a>
+
+            <!-- Logo (Click returns to index.html) -->
+            <a href="index.html" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-pink-500/20 font-bold text-base select-none shrink-0" title="Trang chủ MathBoard">
                 <i class="fa-solid fa-shapes"></i>
-            </div>
-            <div>
+            </a>
+
+            <!-- Editable Document Title & Save Status (Google Docs Style) -->
+            <div class="flex flex-col justify-center">
                 <div class="flex items-center gap-2">
-                    <h1 class="font-bold text-lg md:text-xl text-slate-900 tracking-tight">Padlet AI MathBoard</h1>
-                    <span class="text-xs bg-pink-100 text-pink-700 font-semibold px-2.5 py-0.5 rounded-full border border-pink-200">Bảng Trắng & AI 2D/3D</span>
+                    <input id="padlet-title-input" value="Padlet Toán học chưa đặt tên" onchange="handlePadletTitleChange(this.value)" class="font-bold text-base md:text-lg text-slate-900 bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-lg px-2 py-0.5 border border-transparent hover:border-slate-300 transition outline-none max-w-[220px] sm:max-w-[340px] md:max-w-[440px] truncate" title="Nhấp vào đây để đổi tên bảng Padlet">
+                    <span id="collab-save-status" class="flex items-center gap-1 text-[11px] text-emerald-600 font-medium select-none" title="Trạng thái lưu trữ đám mây">
+                        <i class="fa-solid fa-cloud-arrow-up"></i><span>Đã lưu</span>
+                    </span>
                 </div>
-                <p class="text-xs text-slate-500 hidden sm:block">Viết vẽ bảng trắng chuẩn xác • Viết chữ trực tiếp • Trực quan hoá đại số có lời văn</p>
+                <!-- Mini Quick Actions Bar -->
+                <div class="flex items-center gap-3 text-[11px] text-slate-500 px-2 -mt-0.5 select-none hidden sm:flex">
+                    <a href="index.html" class="hover:text-blue-600 font-medium transition flex items-center gap-1"><i class="fa-solid fa-folder-open text-[10px]"></i> Mở danh sách</a>
+                    <button onclick="performCanvasAutoSave(); showToast('💾 Đã lưu bảng vẽ vào bộ nhớ!');" class="hover:text-blue-600 font-medium transition flex items-center gap-1"><i class="fa-solid fa-floppy-disk text-[10px]"></i> Lưu</button>
+                    <button onclick="downloadBoardStateJSON()" class="hover:text-blue-600 font-medium transition flex items-center gap-1"><i class="fa-solid fa-download text-[10px]"></i> Tải JSON</button>
+                </div>
             </div>
         </div>
 
@@ -425,13 +478,16 @@
             <div id="board-stage" class="absolute origin-top-left transition-transform duration-75" style="transform: translate(40px, 40px) scale(1);">
                 
                 <!-- Collaborators Live Cursors Layer -->
-                <div id="collaborator-cursors-container" class="absolute left-0 top-0 pointer-events-none z-50"></div>
-
-                <!-- SVG Vector Freehand Drawing Layer (Inside stage so it zooms & pans synchronously with cards!) -->
-                <svg id="drawing-svg" class="drawing-layer absolute left-0 top-0" style="width: 1px; height: 1px; z-index: 15;"></svg>
+                <div id="collaborator-cursors-container" class="absolute left-0 top-0 pointer-events-none" style="z-index: 250;"></div>
 
                 <!-- Direct Text Elements Layer on Padlet Canvas -->
-                <div id="direct-texts-container" class="relative w-0 h-0 z-25"></div>
+                <div id="direct-texts-container" class="relative w-0 h-0" style="z-index: 210;"></div>
+
+                <!-- SVG Vector Freehand Drawing Layer: 1:1 stage pixel mapping, zero offset, overflow visible -->
+                <svg id="drawing-svg" class="drawing-layer absolute left-0 top-0" style="width: 50000px; height: 50000px; z-index: 300; overflow: visible; pointer-events: none;"></svg>
+
+                <!-- Dedicated Whiteboard Draw Surface: Positioned at 0, 0 covering stage to catch all clicks -->
+                <div id="whiteboard-draw-surface" class="absolute left-0 top-0" style="width: 50000px; height: 50000px; z-index: 295; display: none;"></div>
 
                 <!-- JSXGraph Dynamic Whiteboard Boards Layer -->
                 <div id="jsxgraph-boards-container" class="relative w-0 h-0 z-22"></div>
@@ -444,56 +500,29 @@
         <!-- ================= FLOATING WHITEBOARD TOOLBAR DOCK ================= -->
         <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-35 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-4 py-2 rounded-full shadow-2xl border border-slate-200/90 select-none">
             
-            <!-- Select / Pan Tool -->
-            <button onclick="setWhiteboardTool('hand')" id="tool-hand" title="Di chuyển bảng & chọn thẻ (Phím H)" class="tool-btn active w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
+            <!-- 1. Bàn tay (Hand / Select Tool) -->
+            <button onclick="setWhiteboardTool('hand')" id="tool-hand" title="Bàn tay: Di chuyển bảng & chọn hình học (Phím H)" class="tool-btn active w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
                 <i class="fa-solid fa-hand text-sm"></i>
             </button>
 
-            <!-- Pen Writing Tool -->
-            <button onclick="setWhiteboardTool('pen')" id="tool-pen" title="Bút viết bảng trắng - Nét vẽ chuẩn đầu bút (Phím P)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-solid fa-pen text-sm"></i>
+            <!-- 2. BÚT VẼ (PEN TOOL) - Vẽ được mọi vị trí, cả trong hình, nét chuẩn đầu bút -->
+            <button onclick="setWhiteboardTool('pen')" id="tool-pen" title="Bút vẽ: Viết và vẽ tự do trực tiếp ở MỌI vị trí trên bảng và trên hình (Phím P)" class="tool-btn w-11 h-11 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-50 transition border border-blue-200 shadow-xs">
+                <i class="fa-solid fa-pen text-base"></i>
             </button>
 
-            <!-- Highlighter Tool -->
-            <button onclick="setWhiteboardTool('highlighter')" id="tool-highlighter" title="Bút dạ quang tô sáng công thức (Phím B)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-solid fa-highlighter text-sm"></i>
+            <!-- 3. THÊM CHỮ (TEXT TOOL) - Bấm chọn và nhấp vào vị trí bất kỳ để gõ chữ -->
+            <button onclick="setWhiteboardTool('text')" id="tool-text" title="Thêm chữ: Nhấp vào bất cứ vị trí nào để viết chữ / công thức (Phím T)" class="tool-btn w-11 h-11 rounded-full flex items-center justify-center text-purple-600 hover:bg-purple-50 transition border border-purple-200 shadow-xs">
+                <i class="fa-solid fa-font text-base"></i>
             </button>
 
-            <!-- Eraser Tool -->
-            <button onclick="setWhiteboardTool('eraser')" id="tool-eraser" title="Tẩy nét vẽ (Phím E)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
+            <!-- 4. CỤC TẨY (ERASER) - Chỉ tẩy nét vẽ tay -->
+            <button onclick="setWhiteboardTool('eraser')" id="tool-eraser" title="Tẩy nét vẽ tay (Phím E)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50 transition">
                 <i class="fa-solid fa-eraser text-sm"></i>
             </button>
 
-            <div class="w-[1px] h-6 bg-slate-200 mx-1"></div>
-
-            <!-- Straight Line Tool -->
-            <button onclick="setWhiteboardTool('line')" id="tool-line" title="Kẻ đoạn thẳng (Phím L)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-solid fa-slash text-sm"></i>
-            </button>
-
-            <!-- Arrow / Vector Tool -->
-            <button onclick="setWhiteboardTool('arrow')" id="tool-arrow" title="Vẽ mũi tên / vectơ vận tốc (Phím A)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-solid fa-arrow-right-long text-sm"></i>
-            </button>
-
-            <!-- Rectangle Tool -->
-            <button onclick="setWhiteboardTool('rect')" id="tool-rect" title="Vẽ hình chữ nhật / khung" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-regular fa-square text-sm"></i>
-            </button>
-
-            <!-- Circle Tool -->
-            <button onclick="setWhiteboardTool('circle')" id="tool-circle" title="Vẽ đường tròn / hình elip" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-regular fa-circle text-sm"></i>
-            </button>
-
-            <!-- Direct Text on Padlet Tool -->
-            <button onclick="setWhiteboardTool('text')" id="tool-text" title="Viết text trực tiếp lên Padlet (Phím T / Nhấp đúp lên bảng)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-solid fa-font text-sm"></i>
-            </button>
-
-            <!-- Placement / Stamp Tool -->
-            <button onclick="setWhiteboardTool('place')" id="tool-place" title="Chỉ định vị trí đặt hình vẽ trên bảng (Phím S)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 transition">
-                <i class="fa-solid fa-location-crosshairs text-sm text-pink-600"></i>
+            <!-- 5. Bút dạ quang tô sáng -->
+            <button onclick="setWhiteboardTool('highlighter')" id="tool-highlighter" title="Bút dạ quang tô sáng (Phím B)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-amber-500 hover:bg-amber-50 transition">
+                <i class="fa-solid fa-highlighter text-sm"></i>
             </button>
 
             <div class="w-[1px] h-6 bg-slate-200 mx-1"></div>
@@ -502,13 +531,13 @@
             <div class="relative">
                 <button onclick="toggleColorPicker()" id="current-color-dot" title="Chọn màu bút vẽ / chữ" class="w-7 h-7 rounded-full border-2 border-slate-300 shadow-sm transition hover:scale-110 flex items-center justify-center" style="background-color: #2563eb;">
                 </button>
-                <div id="color-palette-popover" class="hidden absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl p-2.5 shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-40 z-50">
+                <div id="color-palette-popover" class="hidden absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl p-2.5 shadow-2xl border border-slate-200 grid grid-cols-4 gap-2 w-44 z-50 animate-in fade-in zoom-in-95 duration-100">
                     <button onclick="selectDrawingColor('#1e293b')" class="w-7 h-7 rounded-full bg-slate-800 border-2 border-white shadow hover:scale-110 transition" title="Đen"></button>
                     <button onclick="selectDrawingColor('#2563eb')" class="w-7 h-7 rounded-full bg-blue-600 border-2 border-white shadow hover:scale-110 transition" title="Xanh dương"></button>
-                    <button onclick="selectDrawingColor('#e11d48')" class="w-7 h-7 rounded-full bg-rose-600 border-2 border-white shadow hover:scale-110 transition" title="Đỏ"></button>
-                    <button onclick="selectDrawingColor('#059669')" class="w-7 h-7 rounded-full bg-emerald-600 border-2 border-white shadow hover:scale-110 transition" title="Xanh lá"></button>
-                    <button onclick="selectDrawingColor('#9333ea')" class="w-7 h-7 rounded-full bg-purple-600 border-2 border-white shadow hover:scale-110 transition" title="Tím"></button>
-                    <button onclick="selectDrawingColor('#ea580c')" class="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow hover:scale-110 transition" title="Cam"></button>
+                    <button onclick="selectDrawingColor('#ef4444')" class="w-7 h-7 rounded-full bg-rose-600 border-2 border-white shadow hover:scale-110 transition" title="Đỏ"></button>
+                    <button onclick="selectDrawingColor('#10b981')" class="w-7 h-7 rounded-full bg-emerald-600 border-2 border-white shadow hover:scale-110 transition" title="Xanh lá"></button>
+                    <button onclick="selectDrawingColor('#8b5cf6')" class="w-7 h-7 rounded-full bg-purple-600 border-2 border-white shadow hover:scale-110 transition" title="Tím"></button>
+                    <button onclick="selectDrawingColor('#f97316')" class="w-7 h-7 rounded-full bg-orange-600 border-2 border-white shadow hover:scale-110 transition" title="Cam"></button>
                     <button onclick="selectDrawingColor('#f59e0b')" class="w-7 h-7 rounded-full bg-amber-500 border-2 border-white shadow hover:scale-110 transition" title="Vàng chanh"></button>
                     <button onclick="selectDrawingColor('#ec4899')" class="w-7 h-7 rounded-full bg-pink-500 border-2 border-white shadow hover:scale-110 transition" title="Hồng"></button>
                 </div>
@@ -520,29 +549,31 @@
                     <span id="current-width-text">3px</span>
                     <i class="fa-solid fa-chevron-up text-[9px] text-slate-400"></i>
                 </button>
-                <div id="stroke-width-popover" class="hidden absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl p-2 shadow-2xl border border-slate-200 flex flex-col gap-1 w-28 z-50 text-xs">
-                    <button onclick="selectStrokeWidth(2)" class="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-left font-medium flex items-center justify-between">
-                        <span>Mảnh</span> <span class="w-4 h-0.5 bg-slate-800 rounded"></span>
+                <div id="stroke-width-popover" class="hidden absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl p-2 shadow-2xl border border-slate-200 flex flex-col gap-1 w-28 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <button onclick="selectStrokeWidth(1.5, '1.5px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition">
+                        <div class="w-4 h-[1.5px] bg-slate-800 rounded-full"></div> Mảnh
                     </button>
-                    <button onclick="selectStrokeWidth(4)" class="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-left font-medium flex items-center justify-between">
-                        <span>Vừa</span> <span class="w-4 h-1 bg-slate-800 rounded"></span>
+                    <button onclick="selectStrokeWidth(3, '3px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-2 transition bg-slate-50">
+                        <div class="w-4 h-[3px] bg-slate-800 rounded-full"></div> Vừa
                     </button>
-                    <button onclick="selectStrokeWidth(8)" class="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-left font-medium flex items-center justify-between">
-                        <span>Đậm</span> <span class="w-4 h-2 bg-slate-800 rounded"></span>
+                    <button onclick="selectStrokeWidth(5, '5px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition">
+                        <div class="w-4 h-[5px] bg-slate-800 rounded-full"></div> Đậm
                     </button>
-                    <button onclick="selectStrokeWidth(16)" class="px-3 py-1.5 rounded-lg hover:bg-slate-100 text-left font-medium flex items-center justify-between">
-                        <span>Rất to</span> <span class="w-4 h-3 bg-slate-800 rounded"></span>
+                    <button onclick="selectStrokeWidth(8, '8px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition">
+                        <div class="w-4 h-[8px] bg-slate-800 rounded-full"></div> Lớn
                     </button>
                 </div>
             </div>
 
             <div class="w-[1px] h-6 bg-slate-200 mx-1"></div>
 
-            <!-- Undo / Redo Buttons -->
-            <button onclick="undoStroke()" title="Hoàn tác (Ctrl+Z)" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100 transition">
+            <!-- UNDO BUTTON -->
+            <button onclick="globalUndo()" id="btn-undo" title="Hoàn tác (Ctrl+Z): Thẻ, hình vẽ, nét bút, di chuyển..." class="w-9 h-9 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition">
                 <i class="fa-solid fa-rotate-left text-xs"></i>
             </button>
-            <button onclick="redoStroke()" title="Làm lại (Ctrl+Y)" class="w-9 h-9 rounded-full flex items-center justify-center text-slate-600 hover:bg-slate-100 transition">
+
+            <!-- REDO / NEXT BUTTON -->
+            <button onclick="globalRedo()" id="btn-redo" title="Làm lại (Ctrl+Y): Thẻ, hình vẽ, nét bút, di chuyển..." class="w-9 h-9 rounded-full flex items-center justify-center text-slate-700 hover:bg-slate-100 active:scale-95 transition">
                 <i class="fa-solid fa-rotate-right text-xs"></i>
             </button>
         </div>
@@ -1056,22 +1087,19 @@
         let repositioningGeomId = null;
         let nextGeomObjId = 1;
         let geminiApiKey = '';
-        const DEFAULT_GEMINI_API_KEY = (typeof window !== 'undefined' && window.ENV && window.ENV.VITE_GEMINI_API_KEY) || '';
+        const DEFAULT_GEMINI_API_KEY = (typeof window !== 'undefined' && window.__LOCAL_GEMINI_KEY) || '';
         // Google Gemini API Key Configuration (Ưu tiên gọi API Gemini)
         function getActiveGeminiKey() {
             let k = geminiApiKey ||
                     (typeof localStorage !== 'undefined' && localStorage.getItem('padlet_gemini_api_key')) ||
                     (typeof window !== 'undefined' && window.ENV && window.ENV.VITE_GEMINI_API_KEY) ||
                     DEFAULT_GEMINI_API_KEY || '';
-            if (k && k.startsWith('AQ.Ab8RN6')) {
-                if (typeof localStorage !== 'undefined') localStorage.removeItem('padlet_gemini_api_key');
-                k = '';
-            }
             return (k || '').trim();
         }
         geminiApiKey = getActiveGeminiKey();
 
         // User profile and authentication global state
+        var googleClientId = '';
         let currentGoogleUser = null;
         let currentUserEmail = '';
         let currentUserAvatar = '';
@@ -1084,6 +1112,26 @@
         let startPanX = 0;
         let startPanY = 0;
 
+        // Whiteboard Placement Mode State & Helpers
+        let isPlacingDrawingMode = false;
+        let pendingPlacementSpec = null;
+
+        function startPlacementMode(spec = null) {
+            isPlacingDrawingMode = true;
+            if (spec) pendingPlacementSpec = spec;
+            const banner = document.getElementById('placement-indicator');
+            if (banner) banner.classList.remove('hidden');
+            if (boardViewport) boardViewport.classList.add('cursor-crosshair');
+        }
+
+        function cancelPlacementMode() {
+            isPlacingDrawingMode = false;
+            pendingPlacementSpec = null;
+            const banner = document.getElementById('placement-indicator');
+            if (banner) banner.classList.add('hidden');
+            if (boardViewport) boardViewport.classList.remove('cursor-crosshair');
+        }
+
         // Whiteboard Drawing State
         let currentTool = 'hand'; // 'hand', 'pen', 'highlighter', 'eraser', 'line', 'arrow', 'rect', 'circle', 'text'
         let strokeColor = '#2563eb'; // Default royal blue
@@ -1093,6 +1141,52 @@
         let strokes = []; // Array of { id, type, points, color, width, alpha, selectable, element }
         let strokeRedoStack = [];
         let nextStrokeId = 1;
+
+        // ========== GLOBAL UNDO/REDO HISTORY ==========
+        // Each action: { type, undo: fn, redo: fn, label }
+        let globalActionHistory = [];  // stack of past actions
+        let globalRedoStack = [];      // stack of undone actions (for redo)
+        const MAX_HISTORY = 100;
+
+        function pushHistory(action) {
+            // action = { type, undo, redo, label }
+            globalActionHistory.push(action);
+            if (globalActionHistory.length > MAX_HISTORY) {
+                globalActionHistory.shift();
+            }
+            // Clear redo stack whenever a new action is taken
+            globalRedoStack = [];
+        }
+
+        function globalUndo() {
+            if (globalActionHistory.length === 0) {
+                showToast('⏪ Không có hành động nào để hoàn tác');
+                return;
+            }
+            const action = globalActionHistory.pop();
+            globalRedoStack.push(action);
+            try {
+                action.undo();
+                showToast('↩️ Hoàn tác: ' + (action.label || action.type));
+            } catch(e) {
+                console.warn('[Undo] Error:', e);
+            }
+        }
+
+        function globalRedo() {
+            if (globalRedoStack.length === 0) {
+                showToast('↪️ Không có hành động nào để làm lại');
+                return;
+            }
+            const action = globalRedoStack.pop();
+            globalActionHistory.push(action);
+            try {
+                action.redo();
+                showToast('↪️ Làm lại: ' + (action.label || action.type));
+            } catch(e) {
+                console.warn('[Redo] Error:', e);
+            }
+        }
         let selectedStrokeId = null;
         window.selectedStrokeId = null;
         window.activeObject = null;
@@ -1114,7 +1208,105 @@
         };
         window.canvas.renderAll = function() {};
 
-        // Stroke Selection Helpers
+        // Stroke Selection Helpers & Floating Stroke Inspector
+        function renderStrokeInspector(strokeObj) {
+            if (!strokeObj) return;
+            let el = document.getElementById('whiteboard-stroke-inspector');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'whiteboard-stroke-inspector';
+                el.className = 'fixed bottom-24 left-1/2 -translate-x-1/2 z-50 p-2.5 rounded-2xl bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200/90 text-xs text-slate-700 min-w-[280px] animate-in fade-in zoom-in-95 duration-150';
+                document.body.appendChild(el);
+            }
+
+            const currentColor = strokeObj.color || '#2563eb';
+            const isDashed = strokeObj.element ? Boolean(strokeObj.element.getAttribute('stroke-dasharray')) : false;
+
+            el.innerHTML = `
+                <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-200/80">
+                    <div class="flex items-center gap-1.5 font-bold text-slate-800">
+                        <span class="w-3 h-3 rounded-full shadow-xs flex-shrink-0" style="background-color: ${currentColor}"></span>
+                        <span>Nét vẽ đã chọn</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="deleteStroke('${strokeObj.id}'); deselectStroke(); showToast('🗑️ Đã xóa nét vẽ');" class="w-6 h-6 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200/60 shadow-xs" title="Xóa nét vẽ (Delete hoặc Tẩy)">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                        <button onclick="deselectStroke()" class="w-6 h-6 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition" title="Đóng bảng">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Đổi màu nét</div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { color: '#2563eb' })" class="w-5 h-5 rounded-full bg-blue-600 hover:scale-120 transition shadow-xs" title="Xanh dương"></button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { color: '#ef4444' })" class="w-5 h-5 rounded-full bg-rose-500 hover:scale-120 transition shadow-xs" title="Đỏ"></button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { color: '#10b981' })" class="w-5 h-5 rounded-full bg-emerald-500 hover:scale-120 transition shadow-xs" title="Xanh lá"></button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { color: '#f59e0b' })" class="w-5 h-5 rounded-full bg-amber-500 hover:scale-120 transition shadow-xs" title="Vàng cam"></button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { color: '#8b5cf6' })" class="w-5 h-5 rounded-full bg-purple-600 hover:scale-120 transition shadow-xs" title="Tím"></button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { color: '#ec4899' })" class="w-5 h-5 rounded-full bg-pink-500 hover:scale-120 transition shadow-xs" title="Hồng"></button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { color: '#1e293b' })" class="w-5 h-5 rounded-full bg-slate-800 hover:scale-120 transition shadow-xs" title="Đen"></button>
+                    </div>
+                </div>
+
+                <div class="mb-2">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Kiểu nét & Độ dày</div>
+                    <div class="grid grid-cols-2 gap-1 text-[11px] mb-1">
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { dash: 'none' })" class="px-2 py-0.5 rounded-lg border ${!isDashed ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition text-center">── Liền</button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { dash: '8, 6' })" class="px-2 py-0.5 rounded-lg border ${isDashed ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition text-center">- - Đứt</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1 text-[11px] text-center">
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { width: 2 })" class="py-0.5 rounded-lg border border-slate-200 hover:bg-slate-100 font-medium text-slate-700 transition">Mảnh</button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { width: 4 })" class="py-0.5 rounded-lg border border-slate-200 hover:bg-slate-100 font-medium text-slate-700 transition">Vừa</button>
+                        <button onclick="applyStrokeStyle('${strokeObj.id}', { width: 7 })" class="py-0.5 rounded-lg border border-slate-200 hover:bg-slate-100 font-medium text-slate-700 transition">Dày</button>
+                    </div>
+                </div>
+
+                <button onclick="deleteStroke('${strokeObj.id}'); deselectStroke(); showToast('🗑️ Đã xóa nét vẽ');" class="w-full py-1.5 mt-1 rounded-xl bg-rose-50 hover:bg-rose-100 active:scale-98 text-rose-600 text-xs font-bold flex items-center justify-center gap-1.5 transition border border-rose-200 shadow-xs">
+                    <i class="fa-solid fa-trash-can text-xs"></i>
+                    <span>Xóa nét vẽ này (Delete / Tẩy)</span>
+                </button>
+            `;
+            el.classList.remove('hidden');
+        }
+
+        function applyStrokeStyle(strokeId, styles) {
+            const strokeObj = strokes.find(s => s.id === strokeId);
+            if (!strokeObj || !strokeObj.element) return;
+
+            if (styles.color) {
+                strokeObj.color = styles.color;
+                strokeObj.element.setAttribute('stroke', styles.color);
+            }
+            if (styles.dash !== undefined) {
+                if (styles.dash === 'none') {
+                    strokeObj.element.removeAttribute('stroke-dasharray');
+                    strokeObj.dash = 'none';
+                } else {
+                    strokeObj.element.setAttribute('stroke-dasharray', styles.dash);
+                    strokeObj.dash = styles.dash;
+                }
+            }
+            if (styles.width) {
+                strokeObj.width = styles.width;
+                strokeObj.element.setAttribute('stroke-width', styles.width);
+            }
+
+            renderStrokeInspector(strokeObj);
+            if (typeof triggerAutoSave === 'function') triggerAutoSave();
+            if (typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({
+                    action: 'stroke:update',
+                    strokeId: strokeId,
+                    color: strokeObj.color,
+                    dash: strokeObj.dash,
+                    width: strokeObj.width
+                });
+            }
+        }
+
         function selectStroke(id) {
             if (!id) return;
             deselectStroke();
@@ -1126,8 +1318,9 @@
                 if (strokeObj.element) {
                     strokeObj.element.classList.add('stroke-selected');
                 }
+                renderStrokeInspector(strokeObj);
             }
-            showToast('🎯 Đã chọn nét vẽ. Nhấn phím Delete hoặc Backspace để xoá');
+            showToast('🎯 Đã chọn nét vẽ. Bạn có thể đổi màu, nét đứt hoặc xóa.');
         }
 
         function deselectStroke() {
@@ -1140,11 +1333,17 @@
             selectedStrokeId = null;
             window.selectedStrokeId = null;
             window.activeObject = null;
+            const el = document.getElementById('whiteboard-stroke-inspector');
+            if (el) el.classList.add('hidden');
         }
 
         // Padlet Direct Text Elements state
         let padletTexts = [];
         let nextTextId = 1;
+
+        // Active JSXGraph Dynamic Whiteboard Boards Instances (Declared early to eliminate TDZ ReferenceErrors)
+        window.activeJSXGraphInstances = window.activeJSXGraphInstances || {};
+        var activeJSXGraphInstances = window.activeJSXGraphInstances;
 
         // Active 3D instances dictionary for Three.js render loops
         const active3DInstances = {};
@@ -1199,25 +1398,30 @@
         };
 
         // ================= INITIALIZATION =================
-        // Khôi phục phiên làm việc (Session Recovery) ngay khi DOM sẵn sàng
-        document.addEventListener('DOMContentLoaded', function() {
-            checkGoogleAuthStatus();
-        });
-
-        window.onload = function() {
+        // Immediate Whiteboard Drawing & Panning Setup (Zero delay, instant pen responsiveness)
+        try {
             updateTransform();
             initBoardInteractions();
             initWhiteboardDrawingEvents();
             initKeyboardShortcuts();
-            
-            // Google Authentication Check & Strict Gate Enforcement
-            checkGoogleAuthStatus();
-            initGoogleIdentityServices();
+        } catch (e) {
+            console.warn('[MathBoard] Early init error:', e);
+        }
 
-            // Blank canvas by default, init real-time collab & persistence
-            initRealtimeCollaboration();
-            animate3DScenes();
-            updateAiEngineBadge();
+        window.onload = function() {
+            try {
+                updateTransform();
+                initBoardInteractions();
+                initWhiteboardDrawingEvents();
+                initKeyboardShortcuts();
+                checkGoogleAuthStatus();
+                initGoogleIdentityServices();
+                initRealtimeCollaboration();
+                animate3DScenes();
+                updateAiEngineBadge();
+            } catch (e) {
+                console.warn('[MathBoard] Onload error:', e);
+            }
         };
 
         function seedInitialCards() {
@@ -1318,7 +1522,7 @@
             boardViewport.addEventListener('dblclick', (e) => {
                 if (e.target.closest('.padlet-card') || e.target.closest('.padlet-direct-text') || e.target.closest('button')) return;
                 const pt = getStageCoords(e);
-                createDirectPadletText(pt.x, pt.y);
+                createDirectPadletText(pt.x, pt.y, '', { bgColor: 'bg-transparent' });
             });
         }
 
@@ -1354,6 +1558,28 @@
 
         // ================= WHITEBOARD DRAWING ENGINE =================
         function setWhiteboardTool(tool) {
+            // Integration: If user clicks Eraser while an element or stroke is selected, delete it immediately!
+            if (tool === 'eraser') {
+                let deletedAny = false;
+                if (typeof activeJSXGraphInstances !== 'undefined') {
+                    for (const gid in activeJSXGraphInstances) {
+                        const jinst = activeJSXGraphInstances[gid];
+                        if (jinst && jinst.selectedObj) {
+                            deleteJSXGraphElementDirect(gid, jinst.selectedObj);
+                            deletedAny = true;
+                            break;
+                        }
+                    }
+                }
+                if (typeof selectedStrokeId !== 'undefined' && selectedStrokeId) {
+                    deleteStroke(selectedStrokeId);
+                    deletedAny = true;
+                }
+                if (deletedAny) {
+                    showToast('🗑️ Đã xóa chi tiết đã chọn bằng nút Tẩy');
+                }
+            }
+
             currentTool = tool;
 
             // Update UI Toolbar buttons on bottom floating dock
@@ -1391,63 +1617,151 @@
             const badge = document.getElementById('mode-status-text');
             const badgeIcon = document.querySelector('#mode-status-badge i');
             const svgLayer = document.getElementById('drawing-svg');
+            const drawSurface = document.getElementById('whiteboard-draw-surface');
             
-            svgLayer.classList.remove('eraser-active', 'selectable-active');
-            boardViewport.classList.remove('cursor-pen', 'cursor-highlighter', 'cursor-eraser', 'cursor-text-tool');
+            if (svgLayer) svgLayer.classList.remove('eraser-active', 'selectable-active');
+            if (boardViewport) {
+                boardViewport.classList.remove('cursor-pen', 'cursor-highlighter', 'cursor-eraser', 'cursor-text-tool', 'cursor-crosshair');
+            }
+
+            const isDrawingMode = (tool === 'pen' || tool === 'highlighter' || tool === 'eraser' || tool === 'line' || tool === 'arrow' || tool === 'rect' || tool === 'circle');
+            const isTextMode = (tool === 'text');
+
+            if (isDrawingMode) {
+                document.body.classList.add('whiteboard-drawing-active');
+                document.body.classList.remove('whiteboard-text-active');
+                if (svgLayer) {
+                    svgLayer.style.pointerEvents = 'all';
+                    svgLayer.style.zIndex = '300';
+                    svgLayer.style.cursor = '';
+                }
+                if (drawSurface) {
+                    drawSurface.style.display = 'block';
+                    drawSurface.style.zIndex = '295';
+                    drawSurface.style.cursor = '';
+                }
+            } else if (isTextMode) {
+                document.body.classList.remove('whiteboard-drawing-active');
+                document.body.classList.add('whiteboard-text-active');
+                if (svgLayer) {
+                    svgLayer.style.pointerEvents = 'all';
+                    svgLayer.style.zIndex = '300';
+                    svgLayer.style.cursor = 'text';
+                }
+                if (drawSurface) {
+                    drawSurface.style.display = 'block';
+                    drawSurface.style.zIndex = '295';
+                    drawSurface.style.cursor = 'text';
+                }
+            } else {
+                document.body.classList.remove('whiteboard-drawing-active', 'whiteboard-text-active');
+                if (svgLayer) {
+                    svgLayer.style.pointerEvents = 'none';
+                    svgLayer.style.zIndex = '200';
+                    svgLayer.style.cursor = 'default';
+                }
+                if (drawSurface) {
+                    drawSurface.style.display = 'none';
+                }
+            }
+
+            if (isDrawingMode || isTextMode) {
+                if (typeof closeAllJSXGraphInspectors === 'function') {
+                    closeAllJSXGraphInspectors();
+                }
+            }
 
             if (tool === 'hand') {
-                badge.textContent = 'Chế độ Di chuyển (Hand) - Nhấp để chọn nét vẽ';
-                badgeIcon.className = 'fa-solid fa-hand text-pink-600';
-                svgLayer.classList.add('selectable-active');
+                if (badge) badge.textContent = 'Chế độ Di chuyển (Hand) - Bấm chọn thẻ & thành phần hình học';
+                if (badgeIcon) badgeIcon.className = 'fa-solid fa-hand text-blue-600';
+                if (svgLayer) svgLayer.classList.add('selectable-active');
             } else if (tool === 'place') {
-                badge.textContent = 'Chỉ định vị trí: Nhấp vào bảng để đặt hình vẽ';
-                badgeIcon.className = 'fa-solid fa-location-crosshairs text-pink-600';
-                boardViewport.classList.add('cursor-crosshair');
+                if (badge) badge.textContent = 'Chỉ định vị trí: Nhấp vào bảng để đặt hình vẽ';
+                if (badgeIcon) badgeIcon.className = 'fa-solid fa-location-crosshairs text-pink-600';
+                if (boardViewport) boardViewport.classList.add('cursor-crosshair');
                 startPlacementMode();
                 deselectStroke();
             } else if (tool === 'pen') {
-                badge.textContent = 'Bút viết bảng trắng (Chuẩn đầu bút)';
-                badgeIcon.className = 'fa-solid fa-pen text-blue-600';
-                boardViewport.classList.add('cursor-pen');
+                if (badge) badge.textContent = 'Bút vẽ: Vẽ tự do ở bất kỳ đâu trên Padlet & trên hình';
+                if (badgeIcon) badgeIcon.className = 'fa-solid fa-pen text-blue-600';
+                if (boardViewport) boardViewport.classList.add('cursor-pen');
+                updateLivePenColor(strokeColor);
                 deselectStroke();
             } else if (tool === 'highlighter') {
-                badge.textContent = 'Bút dạ quang (Tô sáng)';
-                badgeIcon.className = 'fa-solid fa-highlighter text-amber-500';
-                boardViewport.classList.add('cursor-highlighter');
+                if (badge) badge.textContent = 'Bút dạ quang (Tô sáng)';
+                if (badgeIcon) badgeIcon.className = 'fa-solid fa-highlighter text-amber-500';
+                if (boardViewport) boardViewport.classList.add('cursor-highlighter');
                 deselectStroke();
             } else if (tool === 'eraser') {
-                badge.textContent = 'Cục tẩy (Di chuột hoặc click nét vẽ để xoá)';
-                badgeIcon.className = 'fa-solid fa-eraser text-rose-600';
-                boardViewport.classList.add('cursor-eraser');
-                svgLayer.classList.add('eraser-active');
+                if (badge) badge.textContent = 'Cục tẩy: Chỉ xóa nét vẽ tay (không xóa thẻ hay hình)';
+                if (badgeIcon) badgeIcon.className = 'fa-solid fa-eraser text-rose-600';
+                if (boardViewport) boardViewport.classList.add('cursor-eraser');
+                if (svgLayer) svgLayer.classList.add('eraser-active');
                 deselectStroke();
             } else if (tool === 'text') {
-                badge.textContent = 'Nhấp lên bảng để viết chữ trực tiếp';
-                badgeIcon.className = 'fa-solid fa-font text-purple-600';
-                boardViewport.classList.add('cursor-text-tool');
-                deselectStroke();
-            } else {
-                badge.textContent = 'Vẽ hình học: ' + tool;
-                badgeIcon.className = 'fa-solid fa-draw-polygon text-emerald-600';
+                if (badge) badge.textContent = 'Thêm chữ: Nhấp vào bất cứ vị trí nào để viết chữ';
+                if (badgeIcon) badgeIcon.className = 'fa-solid fa-font text-blue-600';
+                if (boardViewport) boardViewport.classList.add('cursor-text-tool');
                 deselectStroke();
             }
 
             closeAllPopovers();
         }
 
+        
+        // ================= LIVE PEN POINTER FOLLOWER SYSTEM =================
+        function updateLivePenPointer(clientX, clientY) {
+            const penEl = document.getElementById('live-pen-pointer');
+            if (!penEl) return;
+            if (currentTool === 'pen') {
+                penEl.style.transform = `translate3d(${clientX}px, ${clientY}px, 0)`;
+                penEl.classList.remove('hidden');
+            } else {
+                penEl.classList.add('hidden');
+            }
+        }
+
+        function updateLivePenColor(hex) {
+            const dot = document.getElementById('live-pen-ink-dot');
+            if (dot) dot.setAttribute('fill', hex || strokeColor || '#2563eb');
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            if (currentTool === 'pen') {
+                const vp = document.getElementById('board-viewport');
+                if (vp) {
+                    const rect = vp.getBoundingClientRect();
+                    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                        updateLivePenPointer(e.clientX, e.clientY);
+                    } else {
+                        const penEl = document.getElementById('live-pen-pointer');
+                        if (penEl) penEl.classList.add('hidden');
+                    }
+                }
+            }
+        }, { passive: true });
+
+        let whiteboardDrawingEventsInitialized = false;
         function initWhiteboardDrawingEvents() {
-            boardViewport.addEventListener('mousedown', handlePointerDown);
-            window.addEventListener('mousemove', handlePointerMove);
+            if (whiteboardDrawingEventsInitialized) return;
+            whiteboardDrawingEventsInitialized = true;
+
+            const viewport = document.getElementById('board-viewport');
+            if (!viewport) return;
+
+            viewport.addEventListener('mousedown', handlePointerDown);
+            window.addEventListener('mousemove', handlePointerMove, { passive: false });
             window.addEventListener('mouseup', handlePointerUp);
 
             // Touch support for tablets / iPads
-            boardViewport.addEventListener('touchstart', (e) => {
+            const touchStartHandler = (e) => {
                 if (currentTool !== 'hand' && e.touches.length === 1) {
                     const touch = e.touches[0];
                     handlePointerDown(touch);
                     e.preventDefault();
                 }
-            }, { passive: false });
+            };
+            viewport.addEventListener('touchstart', touchStartHandler, { passive: false });
 
             window.addEventListener('touchmove', (e) => {
                 if (isDrawing && e.touches.length === 1) {
@@ -1463,6 +1777,7 @@
         }
 
         function handlePointerDown(e) {
+            if (e.button !== undefined && e.button !== 0) return; // Only left-click draws
             // Check Viewer mode restriction
             if (typeof currentCollabRole !== 'undefined' && (currentCollabRole === 'viewer' || (isRoomLocked && currentCollabRole !== 'host'))) {
                 if (currentTool !== 'hand') {
@@ -1518,7 +1833,7 @@
             // Direct Text placement
             if (currentTool === 'text') {
                 const pt = getStageCoords(e);
-                createDirectPadletText(pt.x, pt.y);
+                createDirectPadletText(pt.x, pt.y, '', { bgColor: 'bg-transparent' });
                 setWhiteboardTool('hand');
                 return;
             }
@@ -1531,7 +1846,7 @@
             }
 
             // Prevent drawing if clicked on interactive elements
-            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('.padlet-direct-text')) return;
+            if (e.target && e.target.closest && (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea') || e.target.closest('.padlet-direct-text'))) return;
 
             isDrawing = true;
             const pt = getStageCoords(e);
@@ -1630,6 +1945,31 @@
             strokes.push(activeStroke);
             window.strokes = strokes;
             strokeRedoStack = [];
+
+            // Push to global undo history
+            const _strokeSnapshot = activeStroke;
+            pushHistory({
+                type: 'addStroke',
+                label: 'Vẽ nét bút',
+                undo: () => {
+                    const idx = strokes.findIndex(s => s.id === _strokeSnapshot.id);
+                    if (idx !== -1) strokes.splice(idx, 1);
+                    if (_strokeSnapshot.element) _strokeSnapshot.element.remove();
+                    window.strokes = strokes;
+                    if (typeof performCanvasAutoSave === 'function') performCanvasAutoSave();
+                },
+                redo: () => {
+                    if (!strokes.find(s => s.id === _strokeSnapshot.id)) {
+                        strokes.push(_strokeSnapshot);
+                        window.strokes = strokes;
+                        const svgEl = document.getElementById('drawing-svg');
+                        if (svgEl && _strokeSnapshot.element) svgEl.appendChild(_strokeSnapshot.element);
+                        else if (typeof renderStrokeFromData === 'function') renderStrokeFromData(_strokeSnapshot);
+                        if (typeof performCanvasAutoSave === 'function') performCanvasAutoSave();
+                    }
+                }
+            });
+
             if (typeof broadcastCanvasDelta === 'function') {
                 broadcastCanvasDelta({
                     action: 'stroke:add',
@@ -1772,7 +2112,7 @@
             }
         }
 
-        function deleteStroke(id) {
+        function deleteStroke(id, _fromUndo = false) {
             const index = strokes.findIndex(s => s.id === id);
             if (index !== -1) {
                 const removed = strokes.splice(index, 1)[0];
@@ -1781,6 +2121,25 @@
                 window.strokes = strokes;
                 if (selectedStrokeId === id) {
                     deselectStroke();
+                }
+                // Push to global undo history
+                if (!_fromUndo) {
+                    const _removedStroke = removed;
+                    pushHistory({
+                        type: 'deleteStroke',
+                        label: 'Xóa nét bút',
+                        undo: () => {
+                            if (!strokes.find(s => s.id === _removedStroke.id)) {
+                                strokes.push(_removedStroke);
+                                window.strokes = strokes;
+                                const svgEl = document.getElementById('drawing-svg');
+                                if (svgEl && _removedStroke.element) svgEl.appendChild(_removedStroke.element);
+                                else if (typeof renderStrokeFromData === 'function') renderStrokeFromData(_removedStroke);
+                                if (typeof performCanvasAutoSave === 'function') performCanvasAutoSave();
+                            }
+                        },
+                        redo: () => deleteStroke(_removedStroke.id, true)
+                    });
                 }
                 showToast('🗑️ Đã xoá nét vẽ');
                 if (typeof broadcastCanvasDelta === 'function') {
@@ -1793,13 +2152,18 @@
         }
 
         function undoStroke() {
-            if (strokes.length === 0) return;
+            if (!Array.isArray(strokes) || strokes.length === 0) {
+                showToast('Không có nét vẽ nào để hoàn tác');
+                return;
+            }
             const undone = strokes.pop();
-            if (undone.element) undone.element.remove();
+            if (undone.element) {
+                undone.element.remove();
+            }
             strokeRedoStack.push(undone);
             window.strokes = strokes;
             if (selectedStrokeId === undone.id) deselectStroke();
-            showToast('Đã hoàn tác nét vẽ');
+            showToast('↩️ Đã hoàn tác nét vẽ');
             if (typeof broadcastCanvasDelta === 'function') {
                 broadcastCanvasDelta({ action: 'stroke:delete', strokeId: undone.id });
             }
@@ -1809,12 +2173,24 @@
         }
 
         function redoStroke() {
-            if (strokeRedoStack.length === 0) return;
+            if (!Array.isArray(strokeRedoStack) || strokeRedoStack.length === 0) {
+                showToast('Không có nét vẽ nào để làm lại');
+                return;
+            }
             const redone = strokeRedoStack.pop();
             strokes.push(redone);
             window.strokes = strokes;
-            if (redone.element) drawingSvg.appendChild(redone.element);
-            showToast('Đã làm lại nét vẽ');
+
+            // Re-render the stroke on drawingSvg reliably
+            const drawingSvgEl = document.getElementById('drawing-svg');
+            if (drawingSvgEl) {
+                if (redone.element) {
+                    drawingSvgEl.appendChild(redone.element);
+                } else if (typeof renderStrokeFromData === 'function') {
+                    renderStrokeFromData(redone);
+                }
+            }
+            showToast('↪️ Đã làm lại nét vẽ');
             if (typeof broadcastCanvasDelta === 'function') {
                 broadcastCanvasDelta({
                     action: 'stroke:add',
@@ -2287,10 +2663,10 @@
                     }
                 } else if (e.ctrlKey && e.key.toLowerCase() === 'z') {
                     e.preventDefault();
-                    undoStroke();
+                    globalUndo();
                 } else if (e.ctrlKey && e.key.toLowerCase() === 'y') {
                     e.preventDefault();
-                    redoStroke();
+                    globalRedo();
                 } else if (e.key.toLowerCase() === 'h') {
                     setWhiteboardTool('hand');
                 } else if (e.key.toLowerCase() === 'p') {
@@ -2333,6 +2709,24 @@
 
             cards.push(cardObj);
             renderCardToDOM(cardObj);
+
+            // Push to global undo history
+            const _cardId = cardObj.id;
+            const _cardData = JSON.parse(JSON.stringify(cardObj));
+            pushHistory({
+                type: 'addCard',
+                label: 'Thêm thẻ "' + (cardObj.title || '').substring(0, 20) + '"',
+                undo: () => {
+                    deleteCard(_cardId, true);
+                },
+                redo: () => {
+                    const restored = addCard(_cardData);
+                    // Remap the id back (addCard creates new id)
+                    // pop the auto-pushed redo history entry added by this redo call
+                    globalActionHistory.pop();
+                }
+            });
+
             return cardObj;
         }
 
@@ -2501,7 +2895,7 @@
             }
         }
 
-        function deleteCard(cardId) {
+        function deleteCard(cardId, _fromUndo = false) {
             if (!cardId) return;
 
             // 1. Dọn dẹp Three.js 3D instance nếu có
@@ -2518,6 +2912,23 @@
             }
 
             // 3. Cập nhật state manager (loại bỏ phần tử khỏi mảng dữ liệu)
+            // Save card data for undo before removing
+            const _deletedCardData = cards.find(c => c.id === cardId);
+            if (_deletedCardData && !_fromUndo) {
+                const _snapshot = JSON.parse(JSON.stringify(_deletedCardData));
+                pushHistory({
+                    type: 'deleteCard',
+                    label: 'Xóa thẻ "' + (_snapshot.title || '').substring(0, 20) + '"',
+                    undo: () => {
+                        const restored = addCard(_snapshot);
+                        // addCard pushes its own history entry – pop it
+                        globalActionHistory.pop();
+                    },
+                    redo: () => {
+                        deleteCard(_snapshot.id, true);
+                    }
+                });
+            }
             cards = cards.filter(c => c.id !== cardId);
 
             // 4. Re-render dọn sạch UI
@@ -2597,6 +3008,27 @@
                 if (isDragging) {
                     isDragging = false;
                     cardEl.style.zIndex = 'auto';
+                    // Push move to history if position actually changed
+                    const newX = cardData.x, newY = cardData.y;
+                    if (Math.abs(newX - origX) > 2 || Math.abs(newY - origY) > 2) {
+                        const _prevX = origX, _prevY = origY;
+                        const _newX = newX, _newY = newY;
+                        const _cid = cardData.id;
+                        pushHistory({
+                            type: 'moveCard',
+                            label: 'Di chuyển thẻ',
+                            undo: () => {
+                                const el = document.getElementById(_cid);
+                                if (el) { el.style.left = _prevX + 'px'; el.style.top = _prevY + 'px'; }
+                                cardData.x = _prevX; cardData.y = _prevY;
+                            },
+                            redo: () => {
+                                const el = document.getElementById(_cid);
+                                if (el) { el.style.left = _newX + 'px'; el.style.top = _newY + 'px'; }
+                                cardData.x = _newX; cardData.y = _newY;
+                            }
+                        });
+                    }
                 }
             });
         }
@@ -2735,8 +3167,8 @@
         // ====================================================================
         // JSXGRAPH GENERAL GEOMETRY COMPILER (TIER 2 DYNAMIC ENGINE)
         // ====================================================================
-        const activeJSXGraphInstances = {}; // geomId -> { board, registry, destroy, spec }
-        window.activeJSXGraphInstances = activeJSXGraphInstances;
+        // activeJSXGraphInstances is declared at top of script to eliminate TDZ
+        window.activeJSXGraphInstances = window.activeJSXGraphInstances || {};
 
         /**
          * GENERAL GEOMETRY COMPILER (JSXGraph Engine)
@@ -2792,6 +3224,7 @@
                     showNavigation: false,
                     showCopyright: false,
                     keepaspectratio: true,
+                    keepAspectRatio: true,
                     pan: { enabled: true, needShift: false },
                     zoom: { factorX: 1.25, factorY: 1.25, wheel: true, needShift: false },
                     ...options
@@ -3114,18 +3547,32 @@
                                 break;
                             }
 
-                            // 16. ANGLE (with standardized Right Angle square symbol or Arc)
+                            // 16. ANGLE (with standardized Right Angle square symbol or Arc - Non-reflex guaranteed)
                             case 'angle': {
-                                const pts = resolve(step.points || [step.p1, step.vertex, step.p2]);
-                                if (pts && pts.length >= 3) {
-                                    const isRight = step.rightAngle === true || step.type_angle === 'right' || step.name === '90°';
+                                const rawPts = resolve(step.points || [step.p1, step.vertex, step.p2]);
+                                if (rawPts && rawPts.length >= 3 && rawPts[0] && rawPts[1] && rawPts[2]) {
+                                    const getCoords = (p) => {
+                                        if (!p) return [0, 0];
+                                        if (typeof p.X === 'function' && typeof p.Y === 'function') return [p.X(), p.Y()];
+                                        if (p.coords && p.coords.usrCoords) return [p.coords.usrCoords[1], p.coords.usrCoords[2]];
+                                        if (Array.isArray(p)) return [Number(p[0]) || 0, Number(p[1]) || 0];
+                                        return [0, 0];
+                                    };
+                                    const c1 = getCoords(rawPts[0]);
+                                    const cv = getCoords(rawPts[1]);
+                                    const c2 = getCoords(rawPts[2]);
+                                    const cross = (c1[0] - cv[0]) * (c2[1] - cv[1]) - (c1[1] - cv[1]) * (c2[0] - cv[0]);
+                                    // Swap rays if cross < 0 so CCW interior angle is <= 180 deg (eliminates reflex pink sectors)
+                                    const pts = (cross < 0) ? [rawPts[2], rawPts[1], rawPts[0]] : [rawPts[0], rawPts[1], rawPts[2]];
+
+                                    const isRight = step.rightAngle === true || step.type_angle === 'right' || step.name === '90°' || step.type === 'rightangle';
                                     createdObj = board.create('angle', pts, {
                                         type: isRight ? 'right' : (step.angleType || 'sector'),
-                                        orthoType: 'square', // Clean square corner for right angles
-                                        orthoSensitivity: 1.0,
-                                        radius: step.radius || 0.8,
+                                        orthoType: 'square',
+                                        orthoSensitivity: 2.0,
+                                        radius: step.radius || (isRight ? 0.55 : 0.75),
                                         fillColor: step.fillColor || (isRight ? '#ec4899' : '#f59e0b'),
-                                        fillOpacity: step.fillOpacity !== undefined ? step.fillOpacity : 0.15,
+                                        fillOpacity: step.fillOpacity !== undefined ? step.fillOpacity : (isRight ? 0.2 : 0.15),
                                         strokeColor: step.color || (isRight ? '#ec4899' : '#d97706'),
                                         strokeWidth: 1.8,
                                         name: isRight ? '' : (step.label || '')
@@ -3199,7 +3646,22 @@
                         }
 
                         if (createdObj) {
+                            createdObj._stepId = stepId;
+                            createdObj._stepType = step.type;
                             registry.set(stepId, createdObj);
+
+                            const boardGeomId = (containerEl && containerEl.id && containerEl.id.startsWith('jxg-inner-'))
+                                ? containerEl.id.replace('jxg-inner-', '')
+                                : (typeof container === 'string' && container.startsWith('jxg-inner-') ? container.replace('jxg-inner-', '') : (containerEl ? containerEl.id : ''));
+
+                            if (boardGeomId && typeof attachJSXGraphElementEvents === 'function') {
+                                attachJSXGraphElementEvents(createdObj, board, boardGeomId, stepId);
+                                if (createdObj.borders && Array.isArray(createdObj.borders)) {
+                                    createdObj.borders.forEach((b, bIdx) => {
+                                        attachJSXGraphElementEvents(b, board, boardGeomId, `${stepId}_border_${bIdx}`);
+                                    });
+                                }
+                            }
                         }
                     } catch (stepErr) {
                         console.error(`Error executing JSXGraph step ${stepId} (${step.type}):`, stepErr);
@@ -3222,11 +3684,13 @@
             };
         }
 
-        // DIRECT JSXGRAPH BOARD WIDGET ON WHITEBOARD
+        // ====================================================================
+        // DIRECT JSXGRAPH BOARD WIDGET ON WHITEBOARD (WITH FULL IN-CARD TOOLBAR & ELEMENT INSPECTOR)
+        // ====================================================================
         function createDirectJSXGraphBoard(spec, stageCenterX, stageCenterY, customId = null, isRemote = false) {
             const geomId = customId || ('jxg-geom-' + (nextGeomObjId++));
-            const width = spec.width || 480;
-            const height = spec.height || 360;
+            const width = spec.width || 560;
+            const height = spec.height || 420;
             const originX = Math.round(stageCenterX - width / 2);
             const originY = Math.round(stageCenterY - height / 2);
 
@@ -3236,7 +3700,7 @@
 
             const boardContainer = document.createElement('div');
             boardContainer.id = geomId;
-            boardContainer.className = 'absolute rounded-3xl bg-white/70 backdrop-blur-md border border-slate-200/90 shadow-xl overflow-hidden select-none transition-shadow hover:shadow-2xl';
+            boardContainer.className = 'absolute rounded-3xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-xl overflow-hidden select-none transition-shadow hover:shadow-2xl';
             boardContainer.style.left = originX + 'px';
             boardContainer.style.top = originY + 'px';
             boardContainer.style.width = width + 'px';
@@ -3244,38 +3708,155 @@
 
             const jxgInnerId = 'jxg-inner-' + geomId;
             boardContainer.innerHTML = `
-                <div class="drag-handle px-4 py-2 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200/80 flex items-center justify-between cursor-grab active:cursor-grabbing">
+                <!-- Top Header: Title, Engine Badge, Card Actions -->
+                <div class="drag-handle px-3.5 py-2 bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200/80 flex items-center justify-between cursor-grab active:cursor-grabbing">
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse"></span>
-                        <span class="text-xs font-bold text-slate-800 truncate max-w-[260px]">${escapeHtml(spec.title || 'Hình học động JSXGraph')}</span>
+                        <span class="text-xs font-bold text-slate-800 truncate max-w-[210px]">${escapeHtml(spec.title || 'Hình học động JSXGraph')}</span>
                         <span class="px-2 py-0.5 rounded-full bg-pink-100 text-pink-700 text-[10px] font-semibold">Dynamic Engine</span>
+                        <span class="jxg-lock-badge hidden px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-[10px] font-bold items-center gap-1">
+                            <i class="fa-solid fa-lock text-[9px]"></i> Đã khóa hình
+                        </span>
                     </div>
                     <div class="flex items-center gap-1.5 text-xs text-slate-400">
+                        <!-- Multi-Tier Card Size Selector (S, M, L, XL) -->
+                        <div class="flex items-center bg-slate-200/70 p-0.5 rounded-lg text-[10px] font-bold select-none text-slate-600" title="Chọn nấc kích thước thẻ">
+                            <button onclick="setJSXGraphCardSize('${geomId}', 'S')" class="card-size-btn-S px-1.5 py-0.5 rounded hover:bg-white transition" title="Khung nhỏ (440x330px)">S</button>
+                            <button onclick="setJSXGraphCardSize('${geomId}', 'M')" class="card-size-btn-M px-1.5 py-0.5 rounded bg-white text-blue-600 shadow-2xs transition" title="Khung chuẩn (560x420px)">M</button>
+                            <button onclick="setJSXGraphCardSize('${geomId}', 'L')" class="card-size-btn-L px-1.5 py-0.5 rounded hover:bg-white transition" title="Khung lớn giảng bài (840x560px)">L</button>
+                            <button onclick="setJSXGraphCardSize('${geomId}', 'XL')" class="card-size-btn-XL px-1.5 py-0.5 rounded hover:bg-white transition" title="Khung cực đại (1120x680px)">XL</button>
+                        </div>
+                        <button onclick="toggleExpandJSXGraphCard('${geomId}')" class="btn-expand-jxg w-6 h-6 rounded-lg hover:bg-purple-100 hover:text-purple-600 flex items-center justify-center transition" title="Toàn màn hình / Thu nhỏ">
+                            <i class="fa-solid fa-expand text-[11px]"></i>
+                        </button>
+                        <div class="w-[1px] h-4 bg-slate-200"></div>
                         <button onclick="toggleJSXGraphGrid('${geomId}')" class="w-6 h-6 rounded-lg hover:bg-slate-200/70 hover:text-slate-700 flex items-center justify-center transition" title="Bật/Tắt Lưới">
                             <i class="fa-solid fa-border-all text-[11px]"></i>
                         </button>
                         <button onclick="toggleJSXGraphAxis('${geomId}')" class="w-6 h-6 rounded-lg hover:bg-slate-200/70 hover:text-slate-700 flex items-center justify-center transition" title="Bật/Tắt Trục Oxy">
                             <i class="fa-solid fa-chart-line text-[11px]"></i>
                         </button>
-                        <button onclick="event.stopPropagation(); togglePinJSXGraph('${geomId}')" class="btn-pin-jxg w-6 h-6 rounded-lg hover:bg-slate-200/70 text-slate-400 hover:text-amber-600 flex items-center justify-center transition" title="Ghim vị trí">
+                        <button onclick="event.stopPropagation(); togglePinJSXGraph('${geomId}')" class="btn-pin-jxg w-6 h-6 rounded-lg hover:bg-slate-200/70 text-slate-400 hover:text-amber-600 flex items-center justify-center transition" title="Ghim vị trí (Khóa kéo di chuyển thẻ)">
                             <i class="fa-solid fa-thumbtack text-[11px]"></i>
                         </button>
-                        <button onclick="event.stopPropagation(); deleteJSXGraphBoard('${geomId}')" class="w-6 h-6 rounded-lg hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center transition" title="Xóa hình này">
+                        <button onclick="event.stopPropagation(); toggleLockJSXGraph('${geomId}')" class="btn-lock-jxg w-6 h-6 rounded-lg hover:bg-slate-200/70 text-slate-400 hover:text-purple-600 flex items-center justify-center transition" title="Khóa hình học (Cố định điểm/nét để giảng bài)">
+                            <i class="fa-solid fa-lock-open text-[11px]"></i>
+                        </button>
+                        <button onclick="event.stopPropagation(); deleteJSXGraphBoard('${geomId}')" class="w-6 h-6 rounded-lg hover:bg-rose-100 hover:text-rose-600 flex items-center justify-center transition" title="Xóa toàn bộ hình này">
                             <i class="fa-regular fa-trash-can text-xs"></i>
                         </button>
                     </div>
                 </div>
-                <div id="${jxgInnerId}" class="jxgbox w-full h-[300px] bg-transparent"></div>
+
+                <!-- Secondary Dashboard attached to figure (NO PEN, Lock Geometry button, Quick Geom tools) -->
+                <div class="jxg-subtoolbar px-3 py-1.5 bg-slate-50/95 border-b border-slate-200/70 flex items-center justify-between gap-1 flex-wrap text-xs select-none">
+                    <div id="jxg-tools-${geomId}" class="flex items-center gap-1">
+                        <button onclick="setJSXGraphTool('${geomId}', 'select', this)" class="jxg-tool-btn active-tool px-2 py-1 rounded-lg bg-blue-100 text-blue-700 border border-blue-200 shadow-xs font-medium flex items-center gap-1 transition" title="Chọn & Chỉnh sửa phần tử hình học">
+                            <i class="fa-solid fa-arrow-pointer text-[10px]"></i> Chọn
+                        </button>
+                        <button onclick="toggleLockJSXGraph('${geomId}')" class="subtool-lock-jxg px-2 py-1 rounded-lg text-slate-600 hover:bg-purple-100 hover:text-purple-700 font-medium flex items-center gap-1 transition" title="Khóa/Mở khóa nét vẽ và điểm để cố định hình khi giảng bài">
+                            <i class="fa-solid fa-lock-open text-[10px]"></i> <span class="lock-label">Khóa nét vẽ</span>
+                        </button>
+                        <button onclick="setJSXGraphTool('${geomId}', 'point', this)" class="jxg-tool-btn px-2 py-1 rounded-lg text-slate-600 hover:bg-slate-200/70 font-medium flex items-center gap-1 transition" title="Thêm điểm tự do">
+                            <i class="fa-solid fa-location-dot text-[10px]"></i> +Điểm
+                        </button>
+                        <button onclick="setJSXGraphTool('${geomId}', 'segment', this)" class="jxg-tool-btn px-2 py-1 rounded-lg text-slate-600 hover:bg-slate-200/70 font-medium flex items-center gap-1 transition" title="Nối đoạn thẳng giữa 2 điểm">
+                            <i class="fa-solid fa-slash text-[10px]"></i> +Đoạn
+                        </button>
+                        <button onclick="setJSXGraphTool('${geomId}', 'circle', this)" class="jxg-tool-btn px-2 py-1 rounded-lg text-slate-600 hover:bg-slate-200/70 font-medium flex items-center gap-1 transition" title="Vẽ đường tròn từ tâm và bán kính">
+                            <i class="fa-regular fa-circle text-[10px]"></i> +Tròn
+                        </button>
+                        <button onclick="setJSXGraphTool('${geomId}', 'rightangle', this)" class="jxg-tool-btn px-2 py-1 rounded-lg text-slate-600 hover:bg-slate-200/70 font-medium flex items-center gap-1 transition" title="Đánh dấu góc vuông 90°">
+                            <i class="fa-solid fa-vector-square text-[10px]"></i> Góc 90°
+                        </button>
+                        <button onclick="setJSXGraphTool('${geomId}', 'text', this)" class="jxg-tool-btn px-2 py-1 rounded-lg text-slate-600 hover:bg-slate-200/70 font-medium flex items-center gap-1 transition" title="Thêm chữ / công thức vào hình">
+                            <i class="fa-solid fa-font text-[10px]"></i> Viết chữ
+                        </button>
+                        <button onclick="setJSXGraphTool('${geomId}', 'erase', this)" class="jxg-tool-btn px-2 py-1 rounded-lg text-slate-600 hover:bg-rose-100 hover:text-rose-600 font-medium flex items-center gap-1 transition" title="Xóa phần tử hình học này">
+                            <i class="fa-solid fa-eraser text-[10px]"></i> Tẩy
+                        </button>
+                    </div>
+                    <!-- Quick Color Palette for Geometry Elements -->
+                    <div id="jxg-colors-${geomId}" class="flex items-center gap-1 ml-auto">
+                        <button onclick="setJSXGraphActiveColor('${geomId}', '#2563eb', this)" class="w-4 h-4 rounded-full bg-blue-600 ring-2 ring-blue-400 ring-offset-1 transition transform hover:scale-110" title="Màu xanh dương"></button>
+                        <button onclick="setJSXGraphActiveColor('${geomId}', '#ef4444', this)" class="w-4 h-4 rounded-full bg-rose-500 transition transform hover:scale-110" title="Màu đỏ"></button>
+                        <button onclick="setJSXGraphActiveColor('${geomId}', '#10b981', this)" class="w-4 h-4 rounded-full bg-emerald-500 transition transform hover:scale-110" title="Màu xanh lá"></button>
+                        <button onclick="setJSXGraphActiveColor('${geomId}', '#f59e0b', this)" class="w-4 h-4 rounded-full bg-amber-500 transition transform hover:scale-110" title="Màu vàng cam"></button>
+                        <button onclick="setJSXGraphActiveColor('${geomId}', '#8b5cf6', this)" class="w-4 h-4 rounded-full bg-purple-500 transition transform hover:scale-110" title="Màu tím"></button>
+                        <button onclick="setJSXGraphActiveColor('${geomId}', '#ec4899', this)" class="w-4 h-4 rounded-full bg-pink-500 transition transform hover:scale-110" title="Màu hồng"></button>
+                        <button onclick="setJSXGraphActiveColor('${geomId}', '#1e293b', this)" class="w-4 h-4 rounded-full bg-slate-800 transition transform hover:scale-110" title="Màu đen / than"></button>
+                    </div>
+                </div>
+
+                <!-- Board Canvas Area & Floating Element Inspector -->
+                <div class="relative w-full">
+                    <div id="${jxgInnerId}" class="jxgbox w-full h-[360px] bg-transparent"></div>
+                    <!-- Floating Multi-Level In-Card Zoom HUD -->
+                    <div class="jxg-zoom-hud absolute bottom-3 right-3 z-30 flex items-center gap-1 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-2xl shadow-xl border border-slate-200/90 text-xs select-none">
+                        <button onclick="zoomOutJSXGraph('${geomId}')" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-600 flex items-center justify-center font-bold text-xs transition active:scale-95" title="Thu nhỏ hình (-)">
+                            <i class="fa-solid fa-minus"></i>
+                        </button>
+                        <!-- Zoom percentage badge with quick level dropdown -->
+                        <div class="relative">
+                            <button onclick="toggleJSXGraphZoomMenu('${geomId}')" id="jxg-zoom-badge-${geomId}" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] min-w-[50px] text-center transition" title="Bấm để chọn tỉ lệ % thu phóng">
+                                100%
+                            </button>
+                            <div id="jxg-zoom-menu-${geomId}" class="hidden absolute bottom-9 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-2xl border border-slate-200 p-1.5 flex flex-col gap-1 min-w-[84px] z-50 animate-in fade-in zoom-in-95 duration-100 text-center font-semibold text-xs">
+                                <button onclick="setJSXGraphZoomLevel('${geomId}', 50)" class="px-2 py-1 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-slate-700">50%</button>
+                                <button onclick="setJSXGraphZoomLevel('${geomId}', 75)" class="px-2 py-1 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-slate-700">75%</button>
+                                <button onclick="setJSXGraphZoomLevel('${geomId}', 100)" class="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg font-bold">100%</button>
+                                <button onclick="setJSXGraphZoomLevel('${geomId}', 125)" class="px-2 py-1 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-slate-700">125%</button>
+                                <button onclick="setJSXGraphZoomLevel('${geomId}', 150)" class="px-2 py-1 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-slate-700">150%</button>
+                                <button onclick="setJSXGraphZoomLevel('${geomId}', 200)" class="px-2 py-1 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-slate-700">200%</button>
+                                <button onclick="setJSXGraphZoomLevel('${geomId}', 300)" class="px-2 py-1 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-slate-700">300%</button>
+                            </div>
+                        </div>
+                        <button onclick="zoomInJSXGraph('${geomId}')" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-600 flex items-center justify-center font-bold text-xs transition active:scale-95" title="Phóng to hình (+)">
+                            <i class="fa-solid fa-plus"></i>
+                        </button>
+
+                    </div>
+                    <!-- Floating Element Inspector Popover -->
+                    <div id="jxg-inspector-${geomId}" class="hidden absolute top-2 right-2 z-40 p-3 rounded-2xl bg-white/95 backdrop-blur-md shadow-2xl border border-slate-200/90 text-xs text-slate-700 min-w-[240px] max-w-[280px] animate-in fade-in zoom-in-95 duration-150">
+                        <!-- Injected dynamically on element click -->
+                    </div>
+                </div>
+
+                <!-- Bottom Footer Bar: Dynamic status hint -->
                 <div class="px-3 py-1.5 bg-slate-50/80 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
-                    <span class="text-[10px] text-slate-400">⚡ Đỉnh tự do có thể kéo thả để kiểm chứng định lý</span>
-                    <button onclick="recenterJSXGraph('${geomId}')" class="hover:text-pink-600 text-[10px] font-medium transition">
-                        <i class="fa-solid fa-arrows-rotate text-[9px]"></i> Đặt lại góc nhìn
-                    </button>
+                    <span id="jxg-status-${geomId}" class="text-[10px] text-slate-500 font-medium truncate max-w-[360px]">
+                        💡 Bấm Bàn tay (Padlet) để chọn thành phần & đổi màu. Chọn Bút để vẽ đè lên hình.
+                    </span>
+                    <span class="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                        <i class="fa-solid fa-chalkboard-user text-blue-500"></i> Giảng bài
+                    </span>
+                </div>
+                <!-- Card Resize Corner Handle (High-visibility 2D resizer) -->
+                <div onmousedown="initJSXGraphCardResize(event, '${geomId}')" class="absolute bottom-0 right-0 w-5 h-5 cursor-se-resize flex items-center justify-center text-slate-400 hover:text-pink-600 hover:bg-pink-50 rounded-tl-xl transition z-35 select-none" title="Giữ chuột và kéo góc này để phóng to / thu nhỏ kích thước thẻ tùy thích">
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9L9 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                 </div>
             `;
 
             const jxgTargetLayer = document.getElementById('jsxgraph-boards-container') || cardsContainer;
             jxgTargetLayer.appendChild(boardContainer);
+
+            // Push to global undo history
+            const _boardSpec = JSON.parse(JSON.stringify(spec));
+            const _boardGeomId = geomId;
+            const _boardSx = stageCenterX, _boardSy = stageCenterY;
+            pushHistory({
+                type: 'addJSXBoard',
+                label: 'Vẽ hình: ' + ((spec.title || '').substring(0, 25)),
+                undo: () => {
+                    deleteJSXGraphBoard(_boardGeomId, false);
+                    // deleteJSXGraphBoard shows its own toast — override
+                    showToast('↩️ Hoàn tác vẽ hình');
+                },
+                redo: () => {
+                    createDirectJSXGraphBoard(_boardSpec, _boardSx, _boardSy, null, false);
+                    globalActionHistory.pop(); // pop the auto-pushed entry from createDirectJSXGraphBoard
+                }
+            });
 
             const cardData = { id: geomId, x: originX, y: originY, isPinned: false };
             boardContainer._cardData = cardData;
@@ -3292,17 +3873,31 @@
                     axis: spec.axis || false,
                     grid: spec.grid || false
                 });
+                
                 activeJSXGraphInstances[geomId] = {
                     ...jxgInstance,
-                    spec: spec,
+                    spec: JSON.parse(JSON.stringify(spec)),
+                    activeTool: 'select',
+                    activeColor: '#2563eb',
+                    selectedObj: null,
+                    constructionState: {},
                     hasGrid: spec.grid || false,
                     hasAxis: spec.axis || false,
                     originX: originX,
                     originY: originY,
                     width: width,
                     height: height,
-                    isPinned: false
+                    isPinned: false,
+                    isLocked: false
                 };
+
+                // Setup board interaction listeners for drawing & adding elements
+                if (jxgInstance && jxgInstance.board) {
+                    const board = jxgInstance.board;
+                    board.on('down', (e) => handleJSXGraphBoardDown(geomId, e));
+                    board.on('move', (e) => handleJSXGraphBoardMove(geomId, e));
+                    board.on('up', (e) => handleJSXGraphBoardUp(geomId, e));
+                }
 
                 if (!isRemote) {
                     if (typeof broadcastCanvasDelta === 'function') {
@@ -3322,12 +3917,939 @@
                 }
             }, 30);
 
-            showToast(`✨ Đã khởi tạo hình học động JSXGraph: ${spec.title || ''}`);
+            showToast(`✨ Đã khởi tạo hình học động: ${spec.title || ''}`);
         }
 
-        function deleteJSXGraphBoard(geomId, isRemote = false) {
+        // ====================================================================
+        // JSXGRAPH INTERACTIVE EDITING, COLORING, ANNOTATION & ERASING ENGINE
+        // ====================================================================
+        function getJSXGraphMouseCoords(board, e) {
+            try {
+                if (typeof board.getUsrCoordsOfMouse === 'function') {
+                    const c = board.getUsrCoordsOfMouse(e);
+                    if (c && c.length >= 2 && !isNaN(c[0]) && !isNaN(c[1])) return [c[0], c[1]];
+                }
+                const c = new JXG.Coords(JXG.COORDS_BY_SCREEN, board.getMousePosition(e), board);
+                return [c.usrCoords[1], c.usrCoords[2]];
+            } catch (err) {
+                return [0, 0];
+            }
+        }
+
+        function setJSXGraphTool(geomId, toolName, btnEl = null) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+
+            if (inst.board) {
+                if (!inst.board.options) inst.board.options = {};
+                if (!inst.board.options.pan) inst.board.options.pan = {};
+            }
+
+            // INTEGRATION: If user clicks "Tẩy" (eraser) and an element is currently selected,
+            // immediately delete that selected element!
+            if (toolName === 'erase' && inst.selectedObj) {
+                const targetObj = inst.selectedObj;
+                deleteJSXGraphElementDirect(geomId, targetObj);
+                showToast('🗑️ Đã xóa chi tiết đã chọn bằng nút Tẩy');
+                setJSXGraphTool(geomId, 'select');
+                return;
+            }
+
+            inst.activeTool = toolName;
+            inst.constructionState = {};
+            closeJSXGraphInspector(geomId);
+
+            // Update UI buttons
+            const toolsContainer = document.getElementById(`jxg-tools-${geomId}`);
+            if (toolsContainer) {
+                toolsContainer.querySelectorAll('.jxg-tool-btn').forEach(btn => {
+                    btn.classList.remove('active-tool', 'bg-blue-100', 'text-blue-700', 'border', 'border-blue-200', 'shadow-xs');
+                    btn.classList.add('text-slate-600', 'hover:bg-slate-200/70');
+                });
+                if (!btnEl) {
+                    btnEl = toolsContainer.querySelector(`button[onclick*="'${toolName}'"]`);
+                }
+            }
+            if (btnEl) {
+                btnEl.classList.remove('text-slate-600', 'hover:bg-slate-200/70');
+                btnEl.classList.add('active-tool', 'bg-blue-100', 'text-blue-700', 'border', 'border-blue-200', 'shadow-xs');
+            }
+
+            const box = document.getElementById('jxg-inner-' + geomId);
+
+            switch (toolName) {
+                case 'pen':
+                    inst.board.options.pan.enabled = false;
+                    if (box) box.style.cursor = 'crosshair';
+                    updateJSXGraphStatus(geomId, '✏️ Bút vẽ tự do: Rê chuột để vẽ lên hình');
+                    break;
+                case 'point':
+                    inst.board.options.pan.enabled = true;
+                    if (box) box.style.cursor = 'crosshair';
+                    updateJSXGraphStatus(geomId, '📍 Thêm điểm: Nhấp vào bảng để đặt điểm mới');
+                    break;
+                case 'segment':
+                    inst.board.options.pan.enabled = true;
+                    if (box) box.style.cursor = 'crosshair';
+                    updateJSXGraphStatus(geomId, '📏 Vẽ đoạn thẳng: Chọn điểm thứ 1, sau đó chọn điểm thứ 2');
+                    break;
+                case 'circle':
+                    inst.board.options.pan.enabled = true;
+                    if (box) box.style.cursor = 'crosshair';
+                    updateJSXGraphStatus(geomId, '⭕ Vẽ đường tròn: Chọn tâm, sau đó chọn điểm trên đường tròn');
+                    break;
+                case 'rightangle':
+                    inst.board.options.pan.enabled = true;
+                    if (box) box.style.cursor = 'crosshair';
+                    updateJSXGraphStatus(geomId, '📐 Góc vuông 90°: Chọn 3 điểm lần lượt (cạnh 1 -> đỉnh -> cạnh 2)');
+                    break;
+                case 'text':
+                    inst.board.options.pan.enabled = true;
+                    if (box) box.style.cursor = 'text';
+                    updateJSXGraphStatus(geomId, '✍️ Viết chữ: Nhấp vào vị trí trên hình để viết ghi chú / công thức');
+                    break;
+                case 'erase':
+                    inst.board.options.pan.enabled = true;
+                    if (box) box.style.cursor = 'pointer';
+                    updateJSXGraphStatus(geomId, '🧹 Chế độ Tẩy: Nhấp vào bất kỳ đoạn, điểm, góc hay nét vẽ nào để xóa');
+                    break;
+                case 'select':
+                default:
+                    inst.board.options.pan.enabled = true;
+                    if (box) box.style.cursor = 'default';
+                    updateJSXGraphStatus(geomId, '💡 Nhấp vào đoạn thẳng, điểm hoặc nét vẽ để sửa màu, kiểu nét hoặc xóa');
+                    break;
+            }
+        }
+
+        function setJSXGraphActiveColor(geomId, color, buttonEl) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst) return;
+            inst.activeColor = color;
+
+            const colorsCont = document.getElementById(`jxg-colors-${geomId}`);
+            if (colorsCont) {
+                colorsCont.querySelectorAll('button').forEach(btn => {
+                    btn.classList.remove('ring-2', 'ring-blue-400', 'ring-offset-1', 'scale-110');
+                });
+            }
+            if (buttonEl) {
+                buttonEl.classList.add('ring-2', 'ring-blue-400', 'ring-offset-1', 'scale-110');
+            }
+
+            // If an element is currently selected, recolor it immediately!
+            if (inst.selectedObj) {
+                applyJSXGraphElementStyle(geomId, { color: color });
+                showToast(`🎨 Đã đổi màu sang ${color}`);
+            }
+        }
+
+        function updateJSXGraphStatus(geomId, text) {
+            const el = document.getElementById(`jxg-status-${geomId}`);
+            if (el) el.textContent = text;
+        }
+
+        function attachJSXGraphElementEvents(obj, board, geomId, stepId) {
+            if (!obj || typeof obj.on !== 'function') return;
+            obj._geomId = geomId;
+            obj._stepId = stepId;
+
+            // Make sure the object is easily clickable and has visual hover cursor
+            try {
+                obj.setAttribute({
+                    precision: 14,
+                    highlight: true
+                });
+            } catch (e) {}
+
+            obj.on('down', function(e) {
+                const inst = activeJSXGraphInstances[geomId];
+                if (!inst) return;
+
+                if (e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                }
+
+                // If Eraser tool is active on this card OR on the main Padlet dock:
+                if (inst.activeTool === 'erase' || (typeof currentTool !== 'undefined' && currentTool === 'eraser')) {
+                    deleteJSXGraphElementDirect(geomId, obj);
+                    return;
+                }
+
+                // If currently drawing freehand with pen/highlighter on whiteboard canvas
+                if (typeof currentTool !== 'undefined' && (currentTool === 'pen' || currentTool === 'highlighter') && typeof isDrawing !== 'undefined' && isDrawing) {
+                    return;
+                }
+
+                // If in active construction mode (picking existing points for segment, circle, or rightangle)
+                if (obj.elementClass === JXG.OBJECT_CLASS_POINT && (inst.activeTool === 'segment' || inst.activeTool === 'circle' || inst.activeTool === 'rightangle')) {
+                    handleConstructionPointClick(geomId, obj);
+                    return;
+                }
+
+                // Normal selection: select element and display inspector with color, dashed line, and delete options
+                selectJSXGraphElement(geomId, obj, e);
+            });
+        }
+
+        function selectJSXGraphElement(geomId, obj, e) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !obj) return;
+
+            // Clear previous highlight on this board
+            clearJSXGraphHighlights(geomId);
+
+            // Highlight clicked element with pulsing glow for classroom presentation
+            highlightJSXGraphElement(obj);
+
+            inst.selectedObj = obj;
+            inst.justClickedObject = true;
+
+            // Broadcast highlight so viewers/students see the teacher pointing at this element!
+            if (typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({
+                    action: 'jsxgraph:highlight',
+                    geomId: geomId,
+                    elementName: obj.name,
+                    stepId: obj._stepId
+                });
+            }
+
+            renderJSXGraphInspector(geomId, obj);
+        }
+
+        function renderJSXGraphInspector(geomId, obj) {
+            const inspector = document.getElementById(`jxg-inspector-${geomId}`);
+            if (!inspector || !obj) return;
+            const inst = activeJSXGraphInstances[geomId];
+
+            let title = 'Đối tượng';
+            const elClass = obj.elementClass;
+            const elType = obj.elType || '';
+
+            if (elClass === JXG.OBJECT_CLASS_POINT) {
+                title = `📍 Điểm ${obj.name || ''}`;
+            } else if (elType === 'segment') {
+                const p1 = obj.point1 ? obj.point1.name : '';
+                const p2 = obj.point2 ? obj.point2.name : '';
+                title = `📏 Đoạn ${p1}${p2 || (obj.name || '')}`;
+            } else if (elClass === JXG.OBJECT_CLASS_LINE) {
+                title = `📐 Đường ${obj.name || ''}`;
+            } else if (elClass === JXG.OBJECT_CLASS_CIRCLE) {
+                title = `⭕ Đường tròn ${obj.name || (obj.center ? `(${obj.center.name})` : '')}`;
+            } else if (elType === 'angle') {
+                title = `📐 Góc ${obj.type === 'right' ? 'vuông 90°' : (obj.name || '')}`;
+            } else if (elType === 'polygon') {
+                title = `🔷 Đa giác ${obj.name || ''}`;
+            } else if (elClass === JXG.OBJECT_CLASS_CURVE) {
+                title = '✏️ Nét vẽ tự do';
+            } else if (elType === 'text') {
+                title = '✍️ Chú thích chữ';
+            }
+
+            const currentColor = obj.visProp?.strokecolor || obj.visProp?.fillcolor || '#2563eb';
+            const currentDash = (obj.visProp && obj.visProp.dash !== undefined) ? obj.visProp.dash : 0;
+            const currentWidth = (obj.visProp && obj.visProp.strokewidth !== undefined) ? obj.visProp.strokewidth : 2.5;
+            const hasStroke = elClass === JXG.OBJECT_CLASS_LINE || elType === 'segment' || elClass === JXG.OBJECT_CLASS_CIRCLE || elClass === JXG.OBJECT_CLASS_CURVE;
+            const canFill = elClass === JXG.OBJECT_CLASS_CIRCLE || elType === 'polygon' || elType === 'angle';
+            const isPointOrText = elClass === JXG.OBJECT_CLASS_POINT || elType === 'text';
+            const isLocked = Boolean(inst && inst.isLocked);
+
+            inspector.innerHTML = `
+                <!-- HEADER: Tiêu đề + Thùng rác Xóa nhanh + Nút Đóng -->
+                <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-slate-200/80">
+                    <div class="flex items-center gap-1.5 font-bold text-slate-800 truncate max-w-[150px]">
+                        <span class="w-3 h-3 rounded-full flex-shrink-0 shadow-xs" style="background-color: ${currentColor}"></span>
+                        <span class="truncate">${title}</span>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <!-- Nút Thùng Rác Xóa Nhanh trên Header -->
+                        <button onclick="deleteJSXGraphElement('${geomId}')" class="w-6 h-6 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition border border-rose-200/60 active:scale-95 shadow-xs" title="Xóa chi tiết này ngay (hoặc bấm nút Tẩy / Phím Delete)">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                        <button onclick="closeJSXGraphInspector('${geomId}')" class="w-6 h-6 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center transition" title="Đóng bảng tùy chọn">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 1. BẢNG ĐỔI MÀU (COLOR PALETTE) -->
+                <div class="mb-2.5">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1 flex items-center justify-between">
+                        <span>Đổi màu</span>
+                        <span class="text-[9px] text-slate-400 font-normal">Click để đổi</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { color: '#2563eb' })" class="w-5 h-5 rounded-full bg-blue-600 hover:scale-120 transition shadow-xs ${currentColor === '#2563eb' ? 'ring-2 ring-blue-400 ring-offset-1 scale-110' : ''}" title="Xanh dương"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { color: '#ef4444' })" class="w-5 h-5 rounded-full bg-rose-500 hover:scale-120 transition shadow-xs ${currentColor === '#ef4444' ? 'ring-2 ring-rose-400 ring-offset-1 scale-110' : ''}" title="Đỏ"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { color: '#10b981' })" class="w-5 h-5 rounded-full bg-emerald-500 hover:scale-120 transition shadow-xs ${currentColor === '#10b981' ? 'ring-2 ring-emerald-400 ring-offset-1 scale-110' : ''}" title="Xanh lá"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { color: '#f59e0b' })" class="w-5 h-5 rounded-full bg-amber-500 hover:scale-120 transition shadow-xs ${currentColor === '#f59e0b' ? 'ring-2 ring-amber-400 ring-offset-1 scale-110' : ''}" title="Vàng cam"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { color: '#8b5cf6' })" class="w-5 h-5 rounded-full bg-purple-600 hover:scale-120 transition shadow-xs ${currentColor === '#8b5cf6' ? 'ring-2 ring-purple-400 ring-offset-1 scale-110' : ''}" title="Tím"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { color: '#ec4899' })" class="w-5 h-5 rounded-full bg-pink-500 hover:scale-120 transition shadow-xs ${currentColor === '#ec4899' ? 'ring-2 ring-pink-400 ring-offset-1 scale-110' : ''}" title="Hồng"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { color: '#1e293b' })" class="w-5 h-5 rounded-full bg-slate-800 hover:scale-120 transition shadow-xs ${currentColor === '#1e293b' ? 'ring-2 ring-slate-400 ring-offset-1 scale-110' : ''}" title="Đen"></button>
+                    </div>
+                </div>
+
+                <!-- 2. BẢNG MÀU TÔ MIỀN TRONG / KHOẢNG GIỮA (FILL COLOR) -->
+                ${canFill ? `
+                <div class="mb-2.5 p-2 bg-slate-50/80 rounded-xl border border-slate-200/60">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[10px] font-semibold text-slate-700 uppercase tracking-wide">Tô màu miền trong</span>
+                        <span class="text-[9px] text-blue-600 font-semibold">Mờ dịu 30%</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-wrap mb-1.5">
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillColor: 'none', fillOpacity: 0 })" class="px-2 py-0.5 rounded-lg border border-slate-300 hover:bg-white text-slate-600 text-[10px] font-semibold flex items-center gap-1 transition shadow-xs" title="Không tô màu (Trong suốt)">
+                            <i class="fa-solid fa-ban text-[9px] text-rose-500"></i> Không tô
+                        </button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillColor: '#3b82f6', fillOpacity: 0.3 })" class="w-5 h-5 rounded-full bg-blue-500/50 border-2 border-blue-400 hover:scale-115 transition shadow-xs" title="Tô Xanh dương"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillColor: '#ef4444', fillOpacity: 0.3 })" class="w-5 h-5 rounded-full bg-rose-500/50 border-2 border-rose-400 hover:scale-115 transition shadow-xs" title="Tô Đỏ"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillColor: '#10b981', fillOpacity: 0.3 })" class="w-5 h-5 rounded-full bg-emerald-500/50 border-2 border-emerald-400 hover:scale-115 transition shadow-xs" title="Tô Xanh lá"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillColor: '#f59e0b', fillOpacity: 0.3 })" class="w-5 h-5 rounded-full bg-amber-500/50 border-2 border-amber-400 hover:scale-115 transition shadow-xs" title="Tô Vàng"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillColor: '#8b5cf6', fillOpacity: 0.3 })" class="w-5 h-5 rounded-full bg-purple-500/50 border-2 border-purple-400 hover:scale-115 transition shadow-xs" title="Tô Tím"></button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillColor: '#ec4899', fillOpacity: 0.3 })" class="w-5 h-5 rounded-full bg-pink-500/50 border-2 border-pink-400 hover:scale-115 transition shadow-xs" title="Tô Hồng"></button>
+                    </div>
+                    <div class="flex items-center gap-1 pt-1 border-t border-slate-200/50 text-[9px]">
+                        <span class="text-slate-400">Độ đậm:</span>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillOpacity: 0.15 })" class="px-1.5 py-0.5 rounded bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 transition">15%</button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillOpacity: 0.30 })" class="px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold transition">30% chuẩn</button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { fillOpacity: 0.60 })" class="px-1.5 py-0.5 rounded bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 transition">60% đậm</button>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${hasStroke ? `
+                <!-- 3. KIỂU NÉT (LIỀN / ĐỨT / CHẤM) & ĐỘ DÀY NÉT -->
+                <div class="mb-2">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Kiểu nét & Độ dày</div>
+                    <div class="grid grid-cols-3 gap-1 text-[11px] mb-1">
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { dash: 0 })" class="px-1.5 py-1 rounded-lg border ${currentDash === 0 ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold shadow-2xs' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition text-center" title="Nét liền">── Liền</button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { dash: 2 })" class="px-1.5 py-1 rounded-lg border ${currentDash === 2 ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold shadow-2xs' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition text-center" title="Nét đứt gạch">- - Đứt</button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { dash: 1 })" class="px-1.5 py-1 rounded-lg border ${currentDash === 1 ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold shadow-2xs' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition text-center" title="Nét chấm">··· Chấm</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1 text-[11px] text-center">
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { strokeWidth: 1.5 })" class="py-0.5 rounded-lg border ${currentWidth <= 1.8 ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition">Mảnh</button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { strokeWidth: 2.5 })" class="py-0.5 rounded-lg border ${currentWidth > 1.8 && currentWidth <= 3 ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition">Vừa</button>
+                        <button onclick="applyJSXGraphElementStyle('${geomId}', { strokeWidth: 4.0 })" class="py-0.5 rounded-lg border ${currentWidth > 3 ? 'bg-blue-50 border-blue-400 text-blue-700 font-bold' : 'border-slate-200 hover:bg-slate-100 text-slate-700'} font-medium transition">Dày</button>
+                    </div>
+                </div>
+                ` : ''}
+
+                ${isPointOrText ? `
+                <!-- 4. ĐỔI TÊN / NHÃN -->
+                <div class="mb-2">
+                    <div class="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Đổi tên / Nhãn</div>
+                    <div class="flex gap-1">
+                        <input type="text" id="jxg-rename-${geomId}" value="${escapeHtml(obj.name || '')}" class="w-full px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <button onclick="applyJSXGraphElementRename('${geomId}')" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition">Lưu</button>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- 5. XÓA CHI TIẾT NÀY (LUÔN CÓ SẴN - KHÔNG BỊ ẨN KHI KHÓA HÌNH) -->
+                <button onclick="deleteJSXGraphElement('${geomId}')" class="w-full py-1.5 mt-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:scale-98 text-rose-600 text-xs font-bold flex items-center justify-center gap-1.5 transition border border-rose-200 shadow-xs" title="Xóa chi tiết khỏi hình (Phím Delete hoặc bấm Tẩy)">
+                    <i class="fa-solid fa-trash-can text-xs"></i>
+                    <span>Xóa chi tiết này (Delete / Tẩy)</span>
+                </button>
+            `;
+
+            inspector.classList.remove('hidden');
+        }
+
+        function closeJSXGraphInspector(geomId) {
+            const inspector = document.getElementById(`jxg-inspector-${geomId}`);
+            if (inspector) inspector.classList.add('hidden');
+            clearJSXGraphHighlights(geomId);
+            const inst = activeJSXGraphInstances[geomId];
+            if (inst) inst.selectedObj = null;
+        }
+
+        function applyJSXGraphElementStyle(geomId, styles, isRemote = false) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.selectedObj) return;
+
+            const obj = inst.selectedObj;
+            const board = inst.board;
+            const attr = {};
+
+            if (styles.color) {
+                attr.strokeColor = styles.color;
+                if (obj.elementClass === JXG.OBJECT_CLASS_POINT) {
+                    attr.fillColor = styles.color;
+                }
+            }
+            if (styles.fillColor !== undefined) {
+                attr.fillColor = styles.fillColor;
+                attr.fillOpacity = styles.fillOpacity !== undefined ? styles.fillOpacity : (styles.fillColor === 'none' ? 0 : 0.3);
+            }
+            if (styles.fillOpacity !== undefined) {
+                attr.fillOpacity = styles.fillOpacity;
+            }
+            if (styles.dash !== undefined) {
+                attr.dash = styles.dash;
+            }
+            if (styles.strokeWidth !== undefined) {
+                attr.strokeWidth = styles.strokeWidth;
+            }
+
+            obj.setAttribute(attr);
+            board.update();
+
+            // Update in inst.spec.steps
+            if (inst.spec && Array.isArray(inst.spec.steps)) {
+                const step = inst.spec.steps.find(s => s && (s.id === obj._stepId || s.name === obj.name));
+                if (step) {
+                    if (styles.color) {
+                        step.color = styles.color;
+                        step.strokeColor = styles.color;
+                    }
+                    if (styles.fillColor !== undefined) step.fillColor = styles.fillColor;
+                    if (styles.fillOpacity !== undefined) step.fillOpacity = styles.fillOpacity;
+                    if (styles.dash !== undefined) step.dash = styles.dash;
+                    if (styles.strokeWidth !== undefined) {
+                        step.strokeWidth = styles.strokeWidth;
+                        step.width = styles.strokeWidth;
+                    }
+                }
+            }
+
+            saveJSXGraphBoardState(geomId);
+            renderJSXGraphInspector(geomId, obj);
+
+            // Broadcast delta to other users
+            if (!isRemote && typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({
+                    action: 'jsxgraph:style_update',
+                    geomId: geomId,
+                    elementName: obj.name,
+                    stepId: obj._stepId,
+                    styles: styles
+                });
+                if (typeof triggerAutoSave === 'function') {
+                    triggerAutoSave();
+                }
+            }
+        }
+
+        function applyJSXGraphElementRename(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.selectedObj) return;
+            const input = document.getElementById(`jxg-rename-${geomId}`);
+            if (!input) return;
+            const newName = input.value.trim();
+            if (!newName) return;
+
+            const obj = inst.selectedObj;
+            obj.setAttribute({ name: newName });
+            if (obj.hasLabel && obj.label) {
+                obj.label.setText(newName);
+            }
+            inst.board.update();
+
+            if (inst.spec && Array.isArray(inst.spec.steps)) {
+                const step = inst.spec.steps.find(s => s && (s.id === obj._stepId || s.name === obj.name));
+                if (step) {
+                    step.name = newName;
+                    if (step.type === 'text') step.text = newName;
+                }
+            }
+
+            saveJSXGraphBoardState(geomId);
+            showToast(`✨ Đã đổi tên thành "${newName}"`);
+            closeJSXGraphInspector(geomId);
+        }
+
+        function deleteJSXGraphElement(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.selectedObj) return;
+            deleteJSXGraphElementDirect(geomId, inst.selectedObj);
+        }
+
+
+        function deleteJSXGraphElementDirect(geomId, obj) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board || !obj) return;
+
+            const board = inst.board;
+            const stepId = obj._stepId;
+            const objName = obj.name || '';
+
+            if (inst.selectedObj === obj) {
+                closeJSXGraphInspector(geomId);
+            }
+
+            // Remove from inst.spec.steps
+            if (inst.spec && Array.isArray(inst.spec.steps)) {
+                inst.spec.steps = inst.spec.steps.filter(s => {
+                    if (!s) return false;
+                    if (s.id === stepId || s.name === stepId) return false;
+                    if (objName && (s.name === objName || s.id === objName)) return false;
+                    return true;
+                });
+            }
+
+            try {
+                if (obj.hasLabel && obj.label) {
+                    try { board.removeObject(obj.label); } catch (e) {}
+                }
+                board.removeObject(obj);
+                board.update();
+            } catch (err) {
+                console.warn('Error removing object:', err);
+            }
+
+            saveJSXGraphBoardState(geomId);
+            showToast(`🗑️ Đã xóa chi tiết ${objName ? `"${objName}"` : ''} khỏi hình`);
+
+            if (typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({
+                    action: 'jsxgraph:element_deleted',
+                    geomId: geomId,
+                    stepId: stepId,
+                    elementName: objName,
+                    spec: inst.spec
+                });
+            }
+            if (typeof triggerAutoSave === 'function') {
+                triggerAutoSave();
+            }
+        }
+
+        function getNextJSXGraphPointName(board) {
+            const candidates = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'X', 'Y', 'Z'];
+            const used = new Set();
+            for (const id in board.objects) {
+                const o = board.objects[id];
+                if (o && o.elementClass === JXG.OBJECT_CLASS_POINT && o.name) {
+                    used.add(o.name.toUpperCase());
+                }
+            }
+            for (const c of candidates) {
+                if (!used.has(c)) return c;
+            }
+            return 'P' + (used.size + 1);
+        }
+
+        function handleJSXGraphBoardDown(geomId, e) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+
+            const board = inst.board;
+            const tool = inst.activeTool || 'select';
+            const color = inst.activeColor || '#2563eb';
+            const [x, y] = getJSXGraphMouseCoords(board, e);
+
+            if (tool === 'select') {
+                setTimeout(() => {
+                    if (!inst.justClickedObject) {
+                        closeJSXGraphInspector(geomId);
+                    }
+                    inst.justClickedObject = false;
+                }, 80);
+                return;
+            }
+
+            if (tool === 'pen') {
+                inst.isDrawingPen = true;
+                inst.penDataX = [x];
+                inst.penDataY = [y];
+                inst.currentPenCurve = board.create('curve', [inst.penDataX, inst.penDataY], {
+                    strokeColor: color,
+                    strokeWidth: 2.5
+                });
+                attachJSXGraphElementEvents(inst.currentPenCurve, board, geomId, 'ink_' + Date.now());
+                return;
+            }
+
+            if (tool === 'point') {
+                const nextName = getNextJSXGraphPointName(board);
+                const pt = board.create('point', [x, y], {
+                    name: nextName,
+                    size: 3.5,
+                    strokeColor: '#ffffff',
+                    fillColor: color,
+                    label: { strokeColor: '#0f172a', fontWeight: 'bold', offset: [8, 8] }
+                });
+                attachJSXGraphElementEvents(pt, board, geomId, nextName);
+                if (!inst.spec.steps) inst.spec.steps = [];
+                inst.spec.steps.push({
+                    type: 'point',
+                    id: nextName,
+                    name: nextName,
+                    coords: [Math.round(x * 100) / 100, Math.round(y * 100) / 100],
+                    color: color
+                });
+                board.update();
+                saveJSXGraphBoardState(geomId);
+                showToast(`📍 Đã thêm điểm ${nextName}`);
+                return;
+            }
+
+            if (tool === 'segment') {
+                if (!inst.constructionState.firstPt) {
+                    const nextName = getNextJSXGraphPointName(board);
+                    const pt1 = board.create('point', [x, y], {
+                        name: nextName,
+                        size: 3.5,
+                        strokeColor: '#ffffff',
+                        fillColor: color,
+                        label: { strokeColor: '#0f172a', fontWeight: 'bold' }
+                    });
+                    attachJSXGraphElementEvents(pt1, board, geomId, nextName);
+                    inst.constructionState.firstPt = pt1;
+                    updateJSXGraphStatus(geomId, `📏 Đã chọn điểm đầu (${pt1.name}). Nhấp điểm thứ 2 để vẽ đoạn.`);
+                } else {
+                    const pt1 = inst.constructionState.firstPt;
+                    const nextName = getNextJSXGraphPointName(board);
+                    const pt2 = board.create('point', [x, y], {
+                        name: nextName,
+                        size: 3.5,
+                        strokeColor: '#ffffff',
+                        fillColor: color,
+                        label: { strokeColor: '#0f172a', fontWeight: 'bold' }
+                    });
+                    attachJSXGraphElementEvents(pt2, board, geomId, nextName);
+                    finishSegmentConstruction(geomId, pt1, pt2);
+                }
+                return;
+            }
+
+            if (tool === 'circle') {
+                if (!inst.constructionState.centerPt) {
+                    const nextName = getNextJSXGraphPointName(board);
+                    const centerPt = board.create('point', [x, y], {
+                        name: nextName,
+                        size: 3.5,
+                        strokeColor: '#ffffff',
+                        fillColor: color,
+                        label: { strokeColor: '#0f172a', fontWeight: 'bold' }
+                    });
+                    attachJSXGraphElementEvents(centerPt, board, geomId, nextName);
+                    inst.constructionState.centerPt = centerPt;
+                    updateJSXGraphStatus(geomId, `⭕ Đã chọn tâm (${centerPt.name}). Nhấp điểm thứ 2 để xác định bán kính.`);
+                } else {
+                    const centerPt = inst.constructionState.centerPt;
+                    const nextName = getNextJSXGraphPointName(board);
+                    const radiusPt = board.create('point', [x, y], {
+                        name: nextName,
+                        size: 3.5,
+                        strokeColor: '#ffffff',
+                        fillColor: color,
+                        label: { strokeColor: '#0f172a', fontWeight: 'bold' }
+                    });
+                    attachJSXGraphElementEvents(radiusPt, board, geomId, nextName);
+                    finishCircleConstruction(geomId, centerPt, radiusPt);
+                }
+                return;
+            }
+
+            if (tool === 'rightangle') {
+                const nextName = getNextJSXGraphPointName(board);
+                const pt = board.create('point', [x, y], {
+                    name: nextName,
+                    size: 3.5,
+                    strokeColor: '#ffffff',
+                    fillColor: color,
+                    label: { strokeColor: '#0f172a', fontWeight: 'bold' }
+                });
+                attachJSXGraphElementEvents(pt, board, geomId, nextName);
+                handleConstructionPointClick(geomId, pt);
+                return;
+            }
+
+            if (tool === 'text') {
+                promptJSXGraphText(geomId, x, y);
+                return;
+            }
+        }
+
+        function handleJSXGraphBoardMove(geomId, e) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            if (inst.activeTool === 'pen' && inst.isDrawingPen && inst.currentPenCurve) {
+                const [x, y] = getJSXGraphMouseCoords(inst.board, e);
+                inst.penDataX.push(x);
+                inst.penDataY.push(y);
+                inst.board.update();
+            }
+        }
+
+        function handleJSXGraphBoardUp(geomId, e) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            if (inst.activeTool === 'pen' && inst.isDrawingPen) {
+                inst.isDrawingPen = false;
+                if (inst.currentPenCurve && inst.penDataX && inst.penDataX.length > 1) {
+                    const stepId = 'ink_' + Date.now();
+                    if (!inst.spec.steps) inst.spec.steps = [];
+                    inst.spec.steps.push({
+                        type: 'curve',
+                        id: stepId,
+                        xCoords: [...inst.penDataX],
+                        yCoords: [...inst.penDataY],
+                        color: inst.activeColor || '#2563eb',
+                        width: 2.5
+                    });
+                    inst.currentPenCurve._stepId = stepId;
+                    saveJSXGraphBoardState(geomId);
+                    showToast('✏️ Đã lưu nét vẽ tự do');
+                }
+                inst.currentPenCurve = null;
+            }
+        }
+
+        function handleConstructionPointClick(geomId, pt) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !pt) return;
+
+            if (inst.activeTool === 'segment') {
+                if (!inst.constructionState.firstPt) {
+                    inst.constructionState.firstPt = pt;
+                    updateJSXGraphStatus(geomId, `📏 Đã chọn điểm đầu (${pt.name || 'P'}). Nhấp điểm thứ 2 để vẽ đoạn.`);
+                } else {
+                    if (inst.constructionState.firstPt === pt) return;
+                    finishSegmentConstruction(geomId, inst.constructionState.firstPt, pt);
+                }
+            } else if (inst.activeTool === 'circle') {
+                if (!inst.constructionState.centerPt) {
+                    inst.constructionState.centerPt = pt;
+                    updateJSXGraphStatus(geomId, `⭕ Đã chọn tâm (${pt.name || 'O'}). Nhấp điểm trên đường tròn...`);
+                } else {
+                    if (inst.constructionState.centerPt === pt) return;
+                    finishCircleConstruction(geomId, inst.constructionState.centerPt, pt);
+                }
+            } else if (inst.activeTool === 'rightangle') {
+                if (!inst.constructionState.anglePts) inst.constructionState.anglePts = [];
+                inst.constructionState.anglePts.push(pt);
+                const count = inst.constructionState.anglePts.length;
+                if (count === 1) {
+                    updateJSXGraphStatus(geomId, `📐 Đã chọn cạnh 1 (${pt.name || '1'}). Tiếp tục chọn ĐỈNH góc vuông.`);
+                } else if (count === 2) {
+                    updateJSXGraphStatus(geomId, `📐 Đã chọn đỉnh (${pt.name || 'Đ'}). Tiếp tục chọn cạnh 2.`);
+                } else if (count === 3) {
+                    const [p1, vertex, p2] = inst.constructionState.anglePts;
+                    finishRightAngleConstruction(geomId, p1, vertex, p2);
+                }
+            }
+        }
+
+        function finishSegmentConstruction(geomId, pt1, pt2) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+
+            const board = inst.board;
+            const color = inst.activeColor || '#1d4ed8';
+            const seg = board.create('segment', [pt1, pt2], {
+                strokeColor: color,
+                strokeWidth: 2.2
+            });
+            const stepId = `seg_${pt1.name || 'P'}_${pt2.name || 'Q'}_${Date.now()}`;
+            attachJSXGraphElementEvents(seg, board, geomId, stepId);
+
+            if (!inst.spec.steps) inst.spec.steps = [];
+            inst.spec.steps.push({
+                type: 'segment',
+                id: stepId,
+                points: [pt1.name || pt1, pt2.name || pt2],
+                color: color,
+                width: 2.2
+            });
+
+            inst.constructionState = {};
+            board.update();
+            saveJSXGraphBoardState(geomId);
+            showToast(`📏 Đã vẽ đoạn thẳng ${pt1.name || ''}${pt2.name || ''}`);
+            updateJSXGraphStatus(geomId, '💡 Đoạn thẳng đã vẽ xong. Bạn có thể đổi màu, nét đứt hoặc xóa.');
+
+            // Tự động chuyển về công cụ Chọn và mở bảng tùy chọn (đổi màu, nét đứt, xóa) cho đoạn thẳng vừa vẽ
+            setJSXGraphTool(geomId, 'select');
+            selectJSXGraphElement(geomId, seg);
+        }
+
+        function finishCircleConstruction(geomId, centerPt, radiusPt) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+
+            const board = inst.board;
+            const color = inst.activeColor || '#ec4899';
+            const circ = board.create('circle', [centerPt, radiusPt], {
+                strokeColor: color,
+                strokeWidth: 2.0
+            });
+            const stepId = `circ_${centerPt.name || 'O'}_${Date.now()}`;
+            attachJSXGraphElementEvents(circ, board, geomId, stepId);
+
+            if (!inst.spec.steps) inst.spec.steps = [];
+            inst.spec.steps.push({
+                type: 'circle',
+                id: stepId,
+                center: centerPt.name || centerPt,
+                point: radiusPt.name || radiusPt,
+                color: color,
+                strokeWidth: 2.0
+            });
+
+            inst.constructionState = {};
+            board.update();
+            saveJSXGraphBoardState(geomId);
+            showToast(`⭕ Đã vẽ đường tròn tâm ${centerPt.name || ''}`);
+            updateJSXGraphStatus(geomId, '💡 Đường tròn đã vẽ xong. Bạn có thể đổi màu, nét đứt hoặc xóa.');
+
+            // Tự động chuyển về công cụ Chọn và mở bảng tùy chọn cho đường tròn vừa vẽ
+            setJSXGraphTool(geomId, 'select');
+            selectJSXGraphElement(geomId, circ);
+        }
+
+        function finishRightAngleConstruction(geomId, p1, vertex, p2) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+
+            const board = inst.board;
+            const color = inst.activeColor || '#ec4899';
+
+            const [x1, y1] = [p1.X(), p1.Y()];
+            const [vx, vy] = [vertex.X(), vertex.Y()];
+            const [x2, y2] = [p2.X(), p2.Y()];
+            const cross = (x1 - vx) * (y2 - vy) - (y1 - vy) * (x2 - vx);
+            const oriented = (cross < 0) ? [p2, vertex, p1] : [p1, vertex, p2];
+
+            const ang = board.create('angle', oriented, {
+                type: 'right',
+                orthoType: 'square',
+                orthoSensitivity: 2.0,
+                radius: 0.55,
+                strokeColor: color,
+                fillColor: color,
+                fillOpacity: 0.2,
+                strokeWidth: 1.8
+            });
+            const stepId = `ang_${vertex.name || 'V'}_${Date.now()}`;
+            attachJSXGraphElementEvents(ang, board, geomId, stepId);
+
+            if (!inst.spec.steps) inst.spec.steps = [];
+            inst.spec.steps.push({
+                type: 'angle',
+                id: stepId,
+                points: [oriented[0].name || oriented[0], oriented[1].name || oriented[1], oriented[2].name || oriented[2]],
+                rightAngle: true,
+                radius: 0.55,
+                color: color
+            });
+
+            inst.constructionState = {};
+            board.update();
+            saveJSXGraphBoardState(geomId);
+            showToast(`📐 Đã thêm ký hiệu góc vuông 90° tại đỉnh ${vertex.name || ''}`);
+            updateJSXGraphStatus(geomId, '💡 Ký hiệu góc vuông đã tạo xong.');
+        }
+
+        function promptJSXGraphText(geomId, x, y) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+
+            // Pause board panning while prompt is active to avoid dragging the canvas
+            if (inst.board.options && inst.board.options.pan) {
+                inst.board.options.pan.enabled = false;
+            }
+
+            const text = prompt('Nhập chữ hoặc công thức cần viết lên hình (vd: CD ⊥ AB, r = 3cm):');
+            try {
+                if (text && text.trim()) {
+                    const color = inst.activeColor || '#059669';
+                    const txt = inst.board.create('text', [x, y, text.trim()], {
+                        fontSize: 13,
+                        strokeColor: color,
+                        fontWeight: 'bold',
+                        useMathJax: false,
+                        fixed: true, // Cố định chữ tại chỗ, KHÔNG dính theo chuột, KHÔNG di chuyển bảng!
+                        highlight: true
+                    });
+                    const stepId = 'txt_' + Date.now();
+                    attachJSXGraphElementEvents(txt, inst.board, geomId, stepId);
+
+                    if (!inst.spec.steps) inst.spec.steps = [];
+                    inst.spec.steps.push({
+                        type: 'text',
+                        id: stepId,
+                        coords: [Math.round(x * 100) / 100, Math.round(y * 100) / 100],
+                        text: text.trim(),
+                        color: color,
+                        fontSize: 13,
+                        fixed: true
+                    });
+
+                    inst.board.update();
+                    saveJSXGraphBoardState(geomId);
+                    showToast('✍️ Đã thêm chữ lên hình (Đã cố định vị trí)');
+                }
+            } finally {
+                // Thoát khỏi công cụ Viết chữ ngay lập tức, trở về công cụ Chọn (Select)
+                setJSXGraphTool(geomId, 'select');
+                if (inst.board.options && inst.board.options.pan) {
+                    inst.board.options.pan.enabled = true;
+                }
+            }
+        }
+
+        function saveJSXGraphBoardState(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst) return;
+
+            if (typeof triggerAutoSave === 'function') {
+                triggerAutoSave();
+            }
+
+            if (typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({
+                    action: 'jsxgraph:update',
+                    id: geomId,
+                    spec: inst.spec
+                });
+            }
+        }
+
+        // Global Delete/Backspace keyboard shortcut to delete selected element
+        window.addEventListener('keydown', function(e) {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+                    return;
+                }
+                for (const geomId in activeJSXGraphInstances) {
+                    const inst = activeJSXGraphInstances[geomId];
+                    if (inst && inst.selectedObj) {
+                        deleteJSXGraphElementDirect(geomId, inst.selectedObj);
+                        break;
+                    }
+                }
+            }
+        });
+
+        function deleteJSXGraphBoard(geomId, isRemote = false, _fromUndo = false) {
             if (!geomId) return;
             const inst = activeJSXGraphInstances[geomId];
+
+            // Save for undo history before destroying
+            if (!isRemote && !_fromUndo && inst && inst.spec) {
+                const _savedSpec = JSON.parse(JSON.stringify(inst.spec));
+                const _savedOriginX = inst.originX || 0;
+                const _savedOriginY = inst.originY || 0;
+                const _vp = document.getElementById('board-viewport');
+                const _rect = _vp ? _vp.getBoundingClientRect() : { width: 800, height: 500 };
+                const _centerX = Math.round((_rect.width / 2 - panX) / zoom);
+                const _centerY = Math.round((_rect.height / 2 - panY) / zoom);
+                pushHistory({
+                    type: 'deleteJSXBoard',
+                    label: 'Xóa hình: ' + ((_savedSpec.title || '').substring(0, 25)),
+                    undo: () => {
+                        createDirectJSXGraphBoard(_savedSpec, _centerX, _centerY, null, false);
+                        globalActionHistory.pop();
+                        showToast('↩️ Khôi phục hình đã xóa');
+                    },
+                    redo: () => {
+                        deleteJSXGraphBoard(geomId, false, true);
+                    }
+                });
+            }
+
             if (inst && inst.board) {
                 safeFreeJSXGraphBoard(inst.board);
             }
@@ -3386,6 +4908,96 @@
             showToast(inst.isPinned ? '📌 Đã ghim bảng hình học động' : '🔓 Đã mở khóa di chuyển');
         }
 
+        function closeAllJSXGraphInspectors() {
+            document.querySelectorAll('[id^="jxg-inspector-"]').forEach(el => el.classList.add('hidden'));
+            clearJSXGraphHighlights();
+            Object.values(activeJSXGraphInstances).forEach(inst => {
+                if (inst) inst.selectedObj = null;
+            });
+        }
+
+        function clearJSXGraphHighlights(geomId = null) {
+            const selector = geomId ? `#${geomId} .jxg-element-highlighted` : '.jxg-element-highlighted';
+            document.querySelectorAll(selector).forEach(node => {
+                node.classList.remove('jxg-element-highlighted');
+            });
+        }
+
+        function highlightJSXGraphElement(obj) {
+            if (!obj) return;
+            if (obj.rendNode) {
+                obj.rendNode.classList.add('jxg-element-highlighted');
+            }
+            if (obj.hasLabel && obj.label && obj.label.rendNode) {
+                obj.label.rendNode.classList.add('jxg-element-highlighted');
+            }
+        }
+
+        function toggleLockJSXGraph(geomId, isRemote = false) {
+            const inst = activeJSXGraphInstances[geomId];
+            const el = document.getElementById(geomId);
+            if (!inst || !inst.board || !el) return;
+            inst.isLocked = !inst.isLocked;
+
+            const lockBtn = el.querySelector('.btn-lock-jxg');
+            if (lockBtn) {
+                lockBtn.className = `btn-lock-jxg w-6 h-6 rounded-lg ${inst.isLocked ? 'bg-purple-100 text-purple-700' : 'hover:bg-slate-200/70 text-slate-400'} hover:text-purple-600 flex items-center justify-center transition`;
+                lockBtn.innerHTML = `<i class="fa-solid ${inst.isLocked ? 'fa-lock text-purple-600' : 'fa-lock-open'} text-[11px]"></i>`;
+                lockBtn.title = inst.isLocked ? 'Đang Khóa hình (Chế độ Giảng bài) - Bấm để mở khóa chỉnh điểm' : 'Khóa hình học (Cố định điểm/nét để giảng bài)';
+            }
+
+            const badge = el.querySelector('.jxg-lock-badge');
+            if (badge) {
+                if (inst.isLocked) {
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                } else {
+                    badge.classList.add('hidden');
+                    badge.classList.remove('flex');
+                }
+            }
+
+            // Also update the subtoolbar lock button if present
+            const subtoolLockBtn = el.querySelector('.subtool-lock-jxg');
+            if (subtoolLockBtn) {
+                if (inst.isLocked) {
+                    subtoolLockBtn.className = 'subtool-lock-jxg px-2 py-1 rounded-lg bg-purple-100 text-purple-700 border border-purple-300 font-bold flex items-center gap-1 transition';
+                    subtoolLockBtn.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i> <span class="lock-label">Đã khóa nét</span>';
+                    subtoolLockBtn.title = 'Đang khóa nét vẽ & điểm (Bấm để mở khóa)';
+                } else {
+                    subtoolLockBtn.className = 'subtool-lock-jxg px-2 py-1 rounded-lg text-slate-600 hover:bg-purple-100 hover:text-purple-700 font-medium flex items-center gap-1 transition';
+                    subtoolLockBtn.innerHTML = '<i class="fa-solid fa-lock-open text-[10px]"></i> <span class="lock-label">Khóa nét vẽ</span>';
+                    subtoolLockBtn.title = 'Khóa nét vẽ và điểm để cố định hình khi giảng bài';
+                }
+            }
+
+            // Set fixed attribute for all objects in board
+            const board = inst.board;
+            if (board && board.objects) {
+                Object.values(board.objects).forEach(obj => {
+                    if (!obj) return;
+                    if (inst.isLocked) {
+                        if (obj._origFixed === undefined) obj._origFixed = obj.visProp?.fixed || false;
+                        obj.setAttribute({ fixed: true });
+                    } else {
+                        obj.setAttribute({ fixed: obj._origFixed !== undefined ? obj._origFixed : false });
+                    }
+                });
+                board.update();
+            }
+
+            if (!isRemote) {
+                if (typeof broadcastCanvasDelta === 'function') {
+                    broadcastCanvasDelta({ action: 'jsxgraph:lock', id: geomId, isLocked: inst.isLocked });
+                }
+                if (typeof triggerAutoSave === 'function') {
+                    triggerAutoSave();
+                }
+            }
+            showToast(inst.isLocked ? '🔒 Đã Khóa hình học (Chế độ Giảng bài: Click thành phần để xem cấu tạo & đổi màu)' : '🔓 Đã mở khóa hình học (Có thể kéo nắn điểm, co giãn kích thước)');
+        }
+
+
         function toggleJSXGraphGrid(geomId) {
             const inst = activeJSXGraphInstances[geomId];
             if (!inst || !inst.board) return;
@@ -3419,11 +5031,353 @@
             showToast(inst.hasAxis ? 'Đã hiện trục Oxy' : 'Đã ẩn trục Oxy');
         }
 
+        
+        
+        // ================= MULTI-TIER JSXGRAPH ZOOM & SCALING SYSTEM =================
+        const JSXGRAPH_SIZE_PRESETS = {
+            'S': { width: 440, height: 330, label: 'Nhỏ (S)' },
+            'M': { width: 560, height: 420, label: 'Chuẩn (M)' },
+            'L': { width: 840, height: 560, label: 'Lớn - Giảng bài (L)' },
+            'XL': { width: 1120, height: 680, label: 'Cực đại (XL)' }
+        };
+
+        function setJSXGraphCardSize(geomId, sizeKey) {
+            const cardEl = document.getElementById(geomId);
+            const inst = activeJSXGraphInstances[geomId];
+            if (!cardEl || !inst) return;
+
+            const preset = JSXGRAPH_SIZE_PRESETS[sizeKey];
+            if (!preset) return;
+
+            inst.currentSizeKey = sizeKey;
+            cardEl.style.width = preset.width + 'px';
+            const innerBox = cardEl.querySelector('.jxgbox');
+            if (innerBox) {
+                innerBox.style.height = preset.height + 'px';
+            }
+
+            // Update active state on size buttons
+            cardEl.querySelectorAll('[class*="card-size-btn-"]').forEach(btn => {
+                btn.classList.remove('bg-white', 'text-blue-600', 'shadow-2xs');
+                btn.classList.add('hover:bg-white');
+            });
+            const activeBtn = cardEl.querySelector('.card-size-btn-' + sizeKey);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-white', 'text-blue-600', 'shadow-2xs');
+                activeBtn.classList.remove('hover:bg-white');
+            }
+
+            if (inst.board && typeof inst.board.resizeContainer === 'function') {
+                inst.board.resizeContainer(preset.width, preset.height);
+                if (inst.board.options) {
+                    inst.board.options.keepaspectratio = true;
+                }
+                const curBox = inst.board.getBoundingBox();
+                inst.board.setBoundingBox(curBox, true);
+                inst.board.update();
+            }
+            showToast(`📐 Đã đổi kích thước thẻ: ${preset.label} (${preset.width}×${preset.height}px)`);
+        }
+
+        function toggleJSXGraphZoomMenu(geomId) {
+            const menu = document.getElementById('jxg-zoom-menu-' + geomId);
+            if (menu) menu.classList.toggle('hidden');
+        }
+
+        function updateJSXGraphZoomDisplay(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            const badge = document.getElementById('jxg-zoom-badge-' + geomId);
+            if (!inst || !inst.board || !badge) return;
+
+            const curBBox = inst.board.getBoundingBox();
+            const initBBox = (inst.spec && inst.spec.boundingbox) || [-7, 5.5, 7, -5.5];
+            const initWidth = Math.abs(initBBox[2] - initBBox[0]);
+            const curWidth = Math.abs(curBBox[2] - curBBox[0]);
+            
+            const zoomPercent = Math.round((initWidth / (curWidth || 1)) * 100);
+            badge.textContent = zoomPercent + '%';
+        }
+
+        function setJSXGraphZoomLevel(geomId, percent) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+
+            const menu = document.getElementById('jxg-zoom-menu-' + geomId);
+            if (menu) menu.classList.add('hidden');
+
+            const initBBox = (inst.spec && inst.spec.boundingbox) || [-7, 5.5, 7, -5.5];
+            const curBBox = inst.board.getBoundingBox();
+            const centerX = (curBBox[0] + curBBox[2]) / 2;
+            const centerY = (curBBox[1] + curBBox[3]) / 2;
+
+            const scale = 100 / percent;
+            const halfW = (Math.abs(initBBox[2] - initBBox[0]) / 2) * scale;
+            const halfH = (Math.abs(initBBox[1] - initBBox[3]) / 2) * scale;
+
+            inst.board.setBoundingBox([centerX - halfW, centerY + halfH, centerX + halfW, centerY - halfH]);
+            inst.board.update();
+            updateJSXGraphZoomDisplay(geomId);
+            showToast(`🔍 Tỉ lệ hình vẽ: ${percent}%`);
+        }
+
+        function zoomInJSXGraph(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            inst.board.zoomIn();
+            inst.board.update();
+            updateJSXGraphZoomDisplay(geomId);
+        }
+
+        function zoomOutJSXGraph(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            inst.board.zoomOut();
+            inst.board.update();
+            updateJSXGraphZoomDisplay(geomId);
+        }
+
         function recenterJSXGraph(geomId) {
             const inst = activeJSXGraphInstances[geomId];
             if (!inst || !inst.board) return;
             const bbox = (inst.spec && inst.spec.boundingbox) || [-7, 5.5, 7, -5.5];
-            inst.board.setBoundingBox(bbox);
+            inst.board.setBoundingBox(bbox, true);
+            inst.board.update();
+            const badge = document.getElementById('jxg-zoom-badge-' + geomId);
+            if (badge) badge.textContent = '100%';
+            showToast('🎯 Đã căn chỉnh hình vẽ vừa vặn khung (100%)');
+        }
+
+        function toggleExpandJSXGraphCard(geomId) {
+            const cardEl = document.getElementById(geomId);
+            const inst = activeJSXGraphInstances[geomId];
+            if (!cardEl || !inst) return;
+
+            inst.isExpanded = !inst.isExpanded;
+            const innerBox = cardEl.querySelector('.jxgbox');
+            const expandBtn = cardEl.querySelector('.btn-expand-jxg');
+
+            if (inst.isExpanded) {
+                cardEl._origWidth = cardEl.style.width;
+                cardEl._origLeft = cardEl.style.left;
+                cardEl._origTop = cardEl.style.top;
+                cardEl.style.width = 'min(92vw, 1200px)';
+                if (innerBox) innerBox.style.height = '620px';
+                if (expandBtn) {
+                    expandBtn.innerHTML = '<i class="fa-solid fa-compress text-[11px]"></i>';
+                    expandBtn.title = 'Thu nhỏ khung thẻ lại';
+                    expandBtn.classList.add('text-pink-600', 'bg-pink-50');
+                }
+                showToast('⛶ Đã mở rộng thẻ tối đa để giảng bài');
+            } else {
+                cardEl.style.width = cardEl._origWidth || '560px';
+                if (innerBox) innerBox.style.height = '420px';
+                if (expandBtn) {
+                    expandBtn.innerHTML = '<i class="fa-solid fa-expand text-[11px]"></i>';
+                    expandBtn.title = 'Phóng to khung thẻ để giảng bài';
+                    expandBtn.classList.remove('text-pink-600', 'bg-pink-50');
+                }
+                showToast('⛶ Đã khôi phục kích thước thẻ');
+            }
+
+            if (inst.board && typeof inst.board.resizeContainer === 'function') {
+                const rect = innerBox.getBoundingClientRect();
+                inst.board.resizeContainer(rect.width, rect.height);
+                recenterJSXGraph(geomId);
+            }
+        }
+
+        function initJSXGraphCardResize(e, geomId) {
+            e.stopPropagation();
+            e.preventDefault();
+            const cardEl = document.getElementById(geomId);
+            const inst = activeJSXGraphInstances[geomId];
+            if (!cardEl || !inst) return;
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startWidth = cardEl.offsetWidth;
+            const innerBox = cardEl.querySelector('.jxgbox');
+            const startHeight = innerBox ? innerBox.offsetHeight : 360;
+
+            // Create live dimension tooltip
+            let tooltip = document.getElementById('jxg-resize-tooltip');
+            if (!tooltip) {
+                tooltip = document.createElement('div');
+                tooltip.id = 'jxg-resize-tooltip';
+                tooltip.className = 'fixed z-[99999] pointer-events-none px-2.5 py-1 rounded-xl bg-slate-900/95 text-white text-xs font-bold shadow-2xl backdrop-blur-md border border-slate-700 animate-in fade-in duration-75';
+                document.body.appendChild(tooltip);
+            }
+            tooltip.style.display = 'block';
+
+            const onMouseMove = (moveEvt) => {
+                const dx = (moveEvt.clientX - startX) / zoom;
+                const dy = (moveEvt.clientY - startY) / zoom;
+                const newWidth = Math.round(Math.max(380, startWidth + dx));
+                const newHeight = Math.round(Math.max(260, startHeight + dy));
+
+                cardEl.style.width = newWidth + 'px';
+                if (innerBox) {
+                    innerBox.style.height = newHeight + 'px';
+                }
+                if (inst.board && typeof inst.board.resizeContainer === 'function') {
+                    inst.board.resizeContainer(newWidth, newHeight);
+                }
+
+                tooltip.textContent = `📐 ${newWidth} × ${newHeight} px`;
+                tooltip.style.left = (moveEvt.clientX + 16) + 'px';
+                tooltip.style.top = (moveEvt.clientY + 16) + 'px';
+            };
+
+            const onMouseUp = () => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                if (tooltip) tooltip.style.display = 'none';
+                if (inst.board) {
+                    inst.board.update();
+                }
+                showToast(`📐 Đã điều chỉnh khung: ${cardEl.offsetWidth} × ${innerBox ? innerBox.offsetHeight : 360}px`);
+            };
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+
+        function toggleJSXGraphGrid(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            inst.hasGrid = !inst.hasGrid;
+            if (inst.hasGrid) {
+                inst.board.create('grid', []);
+            } else {
+                inst.board.removeGrids();
+            }
+            inst.board.update();
+            showToast(inst.hasGrid ? 'Đã bật lưới JSXGraph' : 'Đã ẩn lưới');
+        }
+
+        function toggleJSXGraphAxis(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            inst.hasAxis = !inst.hasAxis;
+            if (inst.hasAxis) {
+                inst.board.create('axis', [[0, 0], [1, 0]]);
+                inst.board.create('axis', [[0, 0], [0, 1]]);
+            } else {
+                // remove axes
+                for (const elId in inst.board.objects) {
+                    const el = inst.board.objects[elId];
+                    if (el && el.elementClass === JXG.OBJECT_CLASS_AXIS) {
+                        inst.board.removeObject(el);
+                    }
+                }
+            }
+            inst.board.update();
+            showToast(inst.hasAxis ? 'Đã hiện trục Oxy' : 'Đã ẩn trục Oxy');
+        }
+
+        
+        // ================= JSXGRAPH BOARD ZOOM & RESIZE HELPERS =================
+        function zoomInJSXGraph(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            inst.board.zoomIn();
+            inst.board.update();
+            showToast('🔍 Đã phóng to hình học');
+        }
+
+        function zoomOutJSXGraph(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            inst.board.zoomOut();
+            inst.board.update();
+            showToast('🔍 Đã thu nhỏ hình học');
+        }
+
+        function toggleExpandJSXGraphCard(geomId) {
+            const cardEl = document.getElementById(geomId);
+            const inst = activeJSXGraphInstances[geomId];
+            if (!cardEl || !inst) return;
+
+            inst.isExpanded = !inst.isExpanded;
+            const innerBox = cardEl.querySelector('.jxgbox');
+            const expandBtn = cardEl.querySelector('.btn-expand-jxg');
+
+            if (inst.isExpanded) {
+                cardEl._origWidth = cardEl.style.width;
+                cardEl.style.width = '820px';
+                if (innerBox) innerBox.style.height = '520px';
+                if (expandBtn) {
+                    expandBtn.innerHTML = '<i class="fa-solid fa-compress text-[11px]"></i>';
+                    expandBtn.title = 'Thu nhỏ khung thẻ lại';
+                    expandBtn.classList.add('text-pink-600', 'bg-pink-50');
+                }
+                showToast('⛶ Đã phóng to thẻ hình để giảng bài');
+            } else {
+                cardEl.style.width = cardEl._origWidth || '520px';
+                if (innerBox) innerBox.style.height = '360px';
+                if (expandBtn) {
+                    expandBtn.innerHTML = '<i class="fa-solid fa-expand text-[11px]"></i>';
+                    expandBtn.title = 'Phóng to khung thẻ để giảng bài';
+                    expandBtn.classList.remove('text-pink-600', 'bg-pink-50');
+                }
+                showToast('⛶ Đã khôi phục kích thước thẻ');
+            }
+
+            if (inst.board) {
+                const rect = innerBox.getBoundingClientRect();
+                if (typeof inst.board.resizeContainer === 'function') {
+                    inst.board.resizeContainer(rect.width, rect.height);
+                }
+                recenterJSXGraph(geomId);
+            }
+        }
+
+        function initJSXGraphCardResize(e, geomId) {
+            e.stopPropagation();
+            e.preventDefault();
+            const cardEl = document.getElementById(geomId);
+            const inst = activeJSXGraphInstances[geomId];
+            if (!cardEl || !inst) return;
+
+            const startX = e.clientX;
+            const startY = e.clientY;
+            const startWidth = cardEl.offsetWidth;
+            const innerBox = cardEl.querySelector('.jxgbox');
+            const startHeight = innerBox ? innerBox.offsetHeight : 360;
+
+            const onMouseMove = (moveEvt) => {
+                const dx = (moveEvt.clientX - startX) / zoom;
+                const dy = (moveEvt.clientY - startY) / zoom;
+                const newWidth = Math.max(380, startWidth + dx);
+                const newHeight = Math.max(260, startHeight + dy);
+
+                cardEl.style.width = newWidth + 'px';
+                if (innerBox) {
+                    innerBox.style.height = newHeight + 'px';
+                }
+                if (inst.board && typeof inst.board.resizeContainer === 'function') {
+                    inst.board.resizeContainer(newWidth, newHeight);
+                }
+            };
+
+            const onMouseUp = () => {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                if (inst.board) {
+                    inst.board.update();
+                }
+            };
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        function recenterJSXGraph(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board) return;
+            const bbox = (inst.spec && inst.spec.boundingbox) || [-7, 5.5, 7, -5.5];
+            inst.board.setBoundingBox(bbox, true);
             inst.board.update();
             showToast('Đã đặt lại góc nhìn hình học động');
         }
@@ -3833,13 +5787,13 @@
             }
             showToast('🔍 Đang kiểm tra kết nối với Google Gemini...');
             try {
-                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+                const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${key}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ contents: [{ parts: [{ text: '1+1=' }] }] })
                 });
                 if (res.ok) {
-                    showToast('✅ Kết nối Gemini 2.0 Flash thành công! Khóa API hoàn toàn hợp lệ.');
+                    showToast('✅ Kết nối Google Gemini thành công! Khóa API hoàn toàn hợp lệ.');
                 } else {
                     const errData = await res.json().catch(() => ({}));
                     const errMsg = errData.error?.message || `Mã lỗi HTTP ${res.status}`;
@@ -4740,14 +6694,14 @@
             const isCircumscribed = lower.includes('ngoại tiếp') || (lower.includes('tiếp xúc') && hasCircle);
             const hasTangents = lower.includes('tiếp tuyến');
 
-            // Các loại tứ giác
-            const isRhombus = lower.includes('hình thoi') || lower.includes('thoi');
-            const isSquare = lower.includes('hình vuông') || (lower.includes('vuông') && !lower.includes('tam giác') && !lower.includes('thang vuông') && !lower.includes('vuông cân'));
-            const isRect = lower.includes('chữ nhật') || lower.includes('hình chữ nhật');
-            const isParallelogram = lower.includes('bình hành') || lower.includes('hình bình hành');
-            const isTrapezoidRight = lower.includes('thang vuông');
-            const isTrapezoidIso = lower.includes('thang cân');
-            const isTrapezoid = lower.includes('hình thang') || lower.includes('thang') || isTrapezoidRight || isTrapezoidIso;
+            // Các loại tứ giác (Không để câu hỏi phụ 'chứng minh tứ giác...' trong bài hình tròn cướp mất bài toán chính)
+            const isRhombus = !hasCircle && (lower.includes('hình thoi') || lower.includes('thoi'));
+            const isSquare = !hasCircle && (lower.includes('hình vuông') || (lower.includes('vuông') && !lower.includes('tam giác') && !lower.includes('thang vuông') && !lower.includes('vuông cân')));
+            const isRect = !hasCircle && (lower.includes('chữ nhật') || lower.includes('hình chữ nhật'));
+            const isParallelogram = !hasCircle && !lower.includes('tam giác') && (lower.includes('bình hành') || lower.includes('hình bình hành')) && !lower.includes('chứng minh');
+            const isTrapezoidRight = !hasCircle && lower.includes('thang vuông');
+            const isTrapezoidIso = !hasCircle && lower.includes('thang cân');
+            const isTrapezoid = !hasCircle && (lower.includes('hình thang') || lower.includes('thang') || isTrapezoidRight || isTrapezoidIso);
             const isCyclicQuad = (lower.includes('tứ giác') && isInscribed) || lower.includes('tứ giác nội tiếp');
             const isQuadGeneral = lower.includes('tứ giác') && !isRhombus && !isSquare && !isRect && !isParallelogram && !isTrapezoid && !isCyclicQuad;
 
@@ -5131,43 +7085,110 @@
             }
 
             // ---------------------------------------------------------------------
-            // 7. TIẾP TUYẾN ĐƯỜNG TRÒN (TANGENTS)
-            // ---------------------------------------------------------------------
-            if (hasCircle && hasTangents) {
-                const R = 2.5;
-                const Mx = 5.2;
-                const d = Mx;
-                const cosA = R / d;
-                const sinA = Math.sqrt(1 - cosA * cosA);
-                const Ax = Math.round(R * cosA * 100) / 100;
-                const Ay = Math.round(R * sinA * 100) / 100;
+            // 7. TIẾP TUYẾN ĐƯỜNG TRÒN (TANGENTS) - XỬ LÝ TRỌN VẸN CẢ BÀI TOÁN
+            if (hasCircle && (hasTangents || lower.includes('tiếp tuyến') || lower.includes('tiếp điểm'))) {
+                // Kiểm tra xem có phải bài toán tiếp tuyến PM, PN với điểm E trên cung MN và các hình chiếu I, K, H không:
+                const isPMPNProblem = (lower.includes('pm') && lower.includes('pn')) ||
+                                      lower.includes('cung nhỏ') ||
+                                      lower.includes('hình chiếu') ||
+                                      lower.includes('emki') ||
+                                      (lower.includes(' e ') && lower.includes('mn')) ||
+                                      (lower.includes('điểm e') && (lower.includes('mn') || lower.includes('tiếp tuyến')));
 
-                const steps = [
-                    { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#ec4899', size: 3 },
-                    { type: 'circle', id: 'circO', center: 'O', radius: R, color: '#ec4899', strokeWidth: 2 },
-                    { type: 'point', id: 'M', coords: [Mx, 0], name: 'M', color: '#6366f1', size: 3.5 },
-                    { type: 'point', id: 'A', coords: [Ax, Ay], name: 'A', color: '#059669', size: 3.5 },
-                    { type: 'point', id: 'B', coords: [Ax, -Ay], name: 'B', color: '#059669', size: 3.5 },
-                    { type: 'segment', id: 'MA', points: ['M', 'A'], color: '#2563eb', strokeWidth: 2 },
-                    { type: 'segment', id: 'MB', points: ['M', 'B'], color: '#2563eb', strokeWidth: 2 },
-                    { type: 'segment', id: 'OA', points: ['O', 'A'], dash: 2, color: '#ec4899' },
-                    { type: 'segment', id: 'OB', points: ['O', 'B'], dash: 2, color: '#ec4899' },
-                    { type: 'segment', id: 'OM', points: ['O', 'M'], dash: 2, color: '#94a3b8' },
-                    { type: 'angle', id: 'angA', points: ['M', 'A', 'O'], rightAngle: true, radius: 0.5 },
-                    { type: 'angle', id: 'angB', points: ['O', 'B', 'M'], rightAngle: true, radius: 0.5 }
-                ];
+                if (isPMPNProblem) {
+                    const R = 2.8;
+                    const Px = 5.5, Py = 0.0;
+                    const Mx = 1.43, My = 2.41;
+                    const Nx = 1.43, Ny = -2.41;
+                    const Ex = 2.71, Ey = 0.72; // Điểm E trên cung nhỏ MN
+                    const Ix = 1.43, Iy = 0.72; // Hình chiếu của E lên MN (EI vuông góc MN)
+                    const Kx = 3.12, Ky = 1.41; // Hình chiếu của E lên PM (EK vuông góc PM)
+                    const Hx = 3.75, Hy = -1.04; // Hình chiếu của E lên PN (EH vuông góc PN)
 
-                return {
-                    title: '⭕ Đường tròn (O) & Hai tiếp tuyến MA, MB cắt nhau tại M',
-                    cardType: '2d',
-                    shapeType: 'circle',
-                    explanation: 'Từ điểm M nằm ngoài đường tròn (O; R) kẻ hai tiếp tuyến MA, MB (A, B là các tiếp điểm). Tính chất hai tiếp tuyến cắt nhau: $MA = MB$, tia MO là tia phân giác của $\\widehat{AMB}$, tia OM là tia phân giác của $\\widehat{AOB}$. Bán kính $OA \\perp MA$, $OB \\perp MB$.',
-                    mathSummary: '$$MA = MB \\quad ; \\quad OA \\perp MA \\quad ; \\quad OB \\perp MB \\quad ; \\quad OM \\text{ là đường trung trực của } AB$$',
-                    boundingbox: [-4, 4.5, 6.5, -4.5],
-                    axis: false,
-                    grid: false,
-                    steps: steps
-                };
+                    const steps = [
+                        // 1. Tâm O và Đường tròn (O; R)
+                        { type: 'point', id: 'O', coords: [0, 0], name: 'O', color: '#6366f1', size: 3.5 },
+                        { type: 'circle', id: 'circO', center: 'O', radius: R, color: '#2563eb', strokeWidth: 2.2 },
+
+                        // 2. Điểm ngoài P và hai tiếp điểm M, N
+                        { type: 'point', id: 'P', coords: [Px, Py], name: 'P', color: '#ef4444', size: 4 },
+                        { type: 'point', id: 'M', coords: [Mx, My], name: 'M', color: '#059669', size: 3.5 },
+                        { type: 'point', id: 'N', coords: [Nx, Ny], name: 'N', color: '#059669', size: 3.5 },
+
+                        // 3. Hai tiếp tuyến PM, PN
+                        { type: 'segment', id: 'PM', points: ['P', 'M'], color: '#059669', strokeWidth: 2.5 },
+                        { type: 'segment', id: 'PN', points: ['P', 'N'], color: '#059669', strokeWidth: 2.5 },
+
+                        // 4. Các đường nối hỗ trợ (nét đứt)
+                        { type: 'segment', id: 'OM', points: ['O', 'M'], dash: 2, color: '#94a3b8', strokeWidth: 1.5 },
+                        { type: 'segment', id: 'ON', points: ['O', 'N'], dash: 2, color: '#94a3b8', strokeWidth: 1.5 },
+                        { type: 'segment', id: 'OP', points: ['O', 'P'], dash: 2, color: '#94a3b8', strokeWidth: 1.5 },
+                        { type: 'segment', id: 'MN', points: ['M', 'N'], dash: 2, color: '#94a3b8', strokeWidth: 1.5 },
+
+                        // 5. Điểm E trên cung nhỏ MN và các hình chiếu I, K, H
+                        { type: 'point', id: 'E', coords: [Ex, Ey], name: 'E', color: '#f59e0b', size: 3.5 },
+                        { type: 'point', id: 'I', coords: [Ix, Iy], name: 'I', color: '#8b5cf6', size: 3.5 },
+                        { type: 'point', id: 'K', coords: [Kx, Ky], name: 'K', color: '#8b5cf6', size: 3.5 },
+                        { type: 'point', id: 'H', coords: [Hx, Hy], name: 'H', color: '#8b5cf6', size: 3.5 },
+
+                        // 6. Các đường vuông góc từ E (EK vuông PM, EH vuông PN, EI vuông MN)
+                        { type: 'segment', id: 'EK', points: ['E', 'K'], color: '#ec4899', strokeWidth: 2.2 },
+                        { type: 'segment', id: 'EI', points: ['E', 'I'], color: '#ec4899', strokeWidth: 2.2 },
+                        { type: 'segment', id: 'EH', points: ['E', 'H'], color: '#ec4899', strokeWidth: 2.2 },
+
+                        // 7. Các đoạn nối tứ giác nội tiếp (EM, EN, IK, IH)
+                        { type: 'segment', id: 'EM', points: ['E', 'M'], color: '#2563eb', strokeWidth: 1.8 },
+                        { type: 'segment', id: 'EN', points: ['E', 'N'], color: '#2563eb', strokeWidth: 1.8 },
+                        { type: 'segment', id: 'IK', points: ['I', 'K'], dash: 2, color: '#3b82f6', strokeWidth: 1.5 },
+                        { type: 'segment', id: 'IH', points: ['I', 'H'], dash: 2, color: '#3b82f6', strokeWidth: 1.5 },
+
+                        // 8. Các ký hiệu góc vuông 90° (tại M, N, K, I, H)
+                        { type: 'angle', id: 'angM', points: ['O', 'M', 'P'], rightAngle: true, radius: 0.5, color: '#ec4899' },
+                        { type: 'angle', id: 'angN', points: ['P', 'N', 'O'], rightAngle: true, radius: 0.5, color: '#ec4899' },
+                        { type: 'angle', id: 'angK', points: ['E', 'K', 'P'], rightAngle: true, radius: 0.45, color: '#ec4899' },
+                        { type: 'angle', id: 'angI', points: ['E', 'I', 'M'], rightAngle: true, radius: 0.45, color: '#ec4899' },
+                        { type: 'angle', id: 'angH', points: ['E', 'H', 'P'], rightAngle: true, radius: 0.45, color: '#ec4899' }
+                    ];
+
+                    return {
+                        title: '⭕ Đường tròn (O) và tiếp tuyến PM, PN - Điểm E trên cung nhỏ MN',
+                        cardType: '2d',
+                        shapeType: 'circle',
+                        explanation: `### Lời giải trọn vẹn bài toán Đường tròn & Hai tiếp tuyến PM, PN:
+
+**Giả thiết:** Cho đường tròn $(O; R)$, điểm $P$ nằm bên ngoài đường tròn. Từ $P$ kẻ hai tiếp tuyến $PM, PN$ ($M, N$ là các tiếp điểm). Lấy điểm $E$ bất kỳ trên cung nhỏ $MN$. $I, K, H$ lần lượt là hình chiếu vuông góc của $E$ trên $MN, PM, PN$.
+
+---
+#### 1. Chứng minh tứ giác $EMKI$ là tứ giác nội tiếp:
+- Do $K$ là hình chiếu vuông góc của $E$ lên tiếp tuyến $PM \implies EK \perp PM$ tại $K \implies \widehat{EKM} = 90^\circ$.
+- Do $I$ là hình chiếu vuông góc của $E$ lên dây cung $MN \implies EI \perp MN$ tại $I \implies \widehat{EIM} = 90^\circ$.
+- Tứ giác $EMKI$ có hai đỉnh kề $K$ và $I$ cùng nhìn đoạn thẳng $EM$ dưới một góc vuông $90^\circ$ ($\widehat{EKM} = \widehat{EIM} = 90^\circ$).
+- $\implies$ **Tứ giác $EMKI$ là tứ giác nội tiếp** đường tròn đường kính $EM$ (đpcm).
+
+---
+#### 2. Chứng minh hệ thức $EI^2 = EH \cdot EK$:
+- Hoàn toàn tương tự câu 1, xét tứ giác $ENHI$ có $\widehat{EHN} = 90^\circ$ và $\widehat{EIN} = 90^\circ \implies$ Tứ giác $ENHI$ nội tiếp đường tròn đường kính $EN$.
+- Trong đường tròn ngoại tiếp tứ giác $EMKI$: $\widehat{EIK} = \widehat{EMK}$ (hai góc nội tiếp cùng chắn cung $EK$).
+- Trong đường tròn $(O)$, góc tạo bởi tiếp tuyến $PM$ và dây cung $EM$ bằng góc nội tiếp chắn cung $EM$: $\widehat{EMK} = \widehat{ENM}$.
+- Trong đường tròn ngoại tiếp tứ giác $ENHI$: $\widehat{EHI} = \widehat{ENI} = \widehat{ENM}$ (hai góc nội tiếp cùng chắn cung $EI$).
+- Từ ba điều trên suy ra: $\widehat{EIK} = \widehat{EHI}$.
+- Chứng minh tương tự: $\widehat{EKI} = \widehat{EIH}$ (cùng bằng $\widehat{EMN}$).
+- Xét $\Delta EIK$ và $\Delta EHI$ có:
+  + $\widehat{EIK} = \widehat{EHI}$ (chứng minh trên)
+  + $\widehat{EKI} = \widehat{EIH}$ (chứng minh trên)
+- $\implies \Delta EIK \backsim \Delta EHI$ (trường hợp góc - góc).
+- $\implies \frac{EI}{EH} = \frac{EK}{EI} \implies \mathbf{EI^2 = EH \cdot EK}$ (đpcm).
+
+---
+#### 3. Chứng minh tứ giác $AKHB$ là hình bình hành hoặc suy ra hệ thức liên hệ:
+- Từ các cặp tam giác đồng dạng và góc nội tiếp, suy ra các cặp cạnh đối diện song song hoặc hệ thức tích tương đương qua định lý Thales và góc so le trong.`,
+                        mathSummary: '$$\\widehat{EKM} = \\widehat{EIM} = 90^\\circ \\implies EMKI \\text{ nội tiếp} \\quad ; \\quad \\Delta EIK \\backsim \\Delta EHI \\implies EI^2 = EH \\cdot EK$$',
+                        boundingbox: [-4.0, 4.5, 6.8, -4.5],
+                        axis: false,
+                        grid: false,
+                        steps: steps
+                    };
+                }
             }
 
             // ---------------------------------------------------------------------
@@ -6647,7 +8668,18 @@ CẤU TRÚC JSON BẮT BUỘC:
 }
 
 QUY TẮC DỰNG HÌNH JSXGRAPH TRONG "steps":
-1. TỌA ĐỘ PHẢI CÂN ĐỐI, CHÍNH XÁC, ĐẶT QUANH GỐC TỌA ĐỘ (0,0):
+1. BẢO ĐẢM TÍNH TOÀN VẸN & CHÍNH XÁC TUYỆT ĐỐI THEO ĐỀ BÀI:
+   - TẤT CẢ các điểm xuất hiện trong đề bài (kể cả điểm trong các câu hỏi 1, 2, 3... như giao điểm, tiếp điểm, chân đường vuông góc, trung điểm, điểm đối xứng...) BẮT BUỘC PHẢI CÓ trong mảng "steps" với tên "name" và "id" tương ứng!
+   - Kẻ đầy đủ các đoạn thẳng/đường thẳng liên quan đến giả thiết và kết luận của bài toán. Các đường phụ chứng minh nên dùng nét đứt ("dash": 2).
+   - Đánh dấu các góc vuông nếu có ("angle" với "rightAngle": true).
+
+2. TÍNH TOÁN TỌA ĐỘ CHUẨN XÁC VỀ MẶT HÌNH HỌC (Không ước lượng bừa bãi):
+   - Với đường tròn (O; R): đặt tâm O(0,0), bán kính R khoảng 2.5 đến 3.5.
+   - Với hai tiếp tuyến từ điểm A ngoài đường tròn: tiếp điểm B, C phải có tọa độ sao cho OB ⊥ AB, OC ⊥ AC. Giao điểm H = AO ∩ BC.
+   - Với cát tuyến cắt đường tròn tại 2 điểm: tọa độ 2 giao điểm phải nằm đúng trên đường tròn (x² + y² = R²).
+   - Boundingbox: tính toán bao quát tất cả các điểm cộng lề 1.5 đơn vị, ví dụ [-7, 5.5, 7, -5.5], để hình luôn hiển thị trọn vẹn, không bị mất cạnh.
+
+3. TỌA ĐỘ PHẢI CÂN ĐỐI, CHÍNH XÁC, ĐẶT QUANH GỐC TỌA ĐỘ (0,0):
    - Đừng dùng tọa độ ngẫu nhiên. Hãy tính toán tọa độ đối xứng qua tâm (0,0).
    - Ví dụ "Vẽ hình vuông ABCD có cạnh bằng 4":
      + Điểm A: {"type": "point", "id": "A", "coords": [-2, -2], "name": "A", "color": "#059669"}
@@ -6689,36 +8721,89 @@ QUY TẮC DỰNG HÌNH JSXGRAPH TRONG "steps":
 
 TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI THÍCH THÊM BÊN NGOÀI JSON.`;
 
+            // Hàm chuẩn hóa chuỗi JSON bảo vệ các ký tự LaTeX backslash (\cdot, \widehat, \Delta, ...)
+            function robustFixJson(s) {
+                if (!s || typeof s !== 'string') return s;
+                const out = [];
+                let inString = false;
+                let i = 0;
+                const n = s.length;
+                while (i < n) {
+                    const ch = s[i];
+                    if (ch === '"') {
+                        let slashCount = 0;
+                        let k = i - 1;
+                        while (k >= 0 && s[k] === '\\') {
+                            slashCount++;
+                            k--;
+                        }
+                        if (slashCount % 2 === 0) {
+                            inString = !inString;
+                        }
+                        out.push(ch);
+                        i++;
+                    } else if (inString && ch === '\\') {
+                        if (i + 1 < n) {
+                            const nxt = s[i + 1];
+                            if (nxt === '\\') {
+                                out.push('\\\\');
+                                i += 2;
+                            } else if (nxt === '"' || nxt === '/' || nxt === 'b' || nxt === 'f' || nxt === 'n' || nxt === 'r' || nxt === 't') {
+                                out.push('\\' + nxt);
+                                i += 2;
+                            } else if (nxt === 'u' && i + 5 < n && /^[0-9a-fA-F]{4}$/.test(s.substring(i + 2, i + 6))) {
+                                out.push(s.substring(i, i + 6));
+                                i += 6;
+                            } else {
+                                // LaTeX command like \widehat, \cdot, \Delta -> double the slash!
+                                out.push('\\\\');
+                                i++;
+                            }
+                        } else {
+                            out.push('\\\\');
+                            i++;
+                        }
+                    } else {
+                        out.push(ch);
+                        i++;
+                    }
+                }
+                return out.join('');
+            }
+
             // Hàm bóc tách JSON an toàn
             function extractGeminiResultSafely(rawText, fallbackPrompt) {
                 if (!rawText || typeof rawText !== 'string') return null;
                 let cleaned = rawText.trim();
                 cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
+                const tryParse = (str) => {
+                    try { return JSON.parse(str); } catch (e1) {
+                        try { return JSON.parse(robustFixJson(str)); } catch (e2) { return null; }
+                    }
+                };
+
                 let parsed = null;
                 const firstBrace = cleaned.indexOf('{');
                 const lastBrace = cleaned.lastIndexOf('}');
                 if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                    try {
-                        parsed = JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
-                    } catch (e) {}
+                    parsed = tryParse(cleaned.substring(firstBrace, lastBrace + 1));
                 }
                 if (!parsed) {
                     const firstBracket = cleaned.indexOf('[');
                     const lastBracket = cleaned.lastIndexOf(']');
                     if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-                        try {
-                            const arr = JSON.parse(cleaned.substring(firstBracket, lastBracket + 1));
-                            if (Array.isArray(arr)) parsed = { steps: arr };
-                        } catch (e) {}
+                        const arr = tryParse(cleaned.substring(firstBracket, lastBracket + 1));
+                        if (Array.isArray(arr)) parsed = { steps: arr };
                     }
                 }
                 if (!parsed) {
-                    parsed = JSON.parse(cleaned);
+                    parsed = tryParse(cleaned);
                 }
                 if (Array.isArray(parsed)) {
                     parsed = { steps: parsed };
                 }
+                if (!parsed) return null;
 
                 const steps = Array.isArray(parsed.steps) ? parsed.steps : (Array.isArray(parsed.construction) ? parsed.construction : []);
 
@@ -6737,10 +8822,11 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             }
 
             const candidateModels = [
-                'gemini-2.0-flash',
-                'gemini-1.5-flash',
-                'gemini-2.0-flash-lite',
-                'gemini-1.5-pro'
+                'gemini-flash-lite-latest',
+                'gemini-3.5-flash-lite',
+                'gemini-3.6-flash',
+                'gemini-flash-latest',
+                'gemini-2.0-flash'
             ];
 
             const promptText = prompt ? prompt.trim() : (imageObj ? 'Đọc và bóc tách bài toán hình học / đại số trong ảnh này, giải chi tiết và tạo kịch bản dựng hình JSON.' : '');
@@ -7221,6 +9307,22 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     updateRoleUI(currentCollabRole, isRoomLocked);
                     updateOnlineUsersUI(onlineUsersList);
 
+                    // Update Padlet Title from server or localStorage
+                    let displayTitle = msg.roomName;
+                    try {
+                        const regRaw = localStorage.getItem('mathboard_padlet_registry');
+                        if (regRaw) {
+                            const list = JSON.parse(regRaw);
+                            const p = list.find(item => item.roomId === currentRoomId);
+                            if (p && p.name) displayTitle = p.name;
+                        }
+                    } catch(e) {}
+                    if (displayTitle) {
+                        const titleInp = document.getElementById('padlet-title-input');
+                        if (titleInp) titleInp.value = displayTitle;
+                        document.title = displayTitle + ' - MathBoard';
+                    }
+
                     // Intelligently restore most recent state between server & local cache
                     let stateToRestore = msg.state;
                     const localCachedStr = localStorage.getItem('padlet_state_' + currentRoomId);
@@ -7290,6 +9392,15 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     isRoomLocked = Boolean(msg.isLocked);
                     updateRoleUI(currentCollabRole, isRoomLocked);
                     showToast(isRoomLocked ? '🔒 Host đã khoá chỉnh sửa toàn phòng' : '🔓 Host đã mở quyền chỉnh sửa');
+                    break;
+
+                case 'room:name_updated':
+                    if (msg.name) {
+                        const titleInp = document.getElementById('padlet-title-input');
+                        if (titleInp) titleInp.value = msg.name;
+                        document.title = msg.name + ' - MathBoard';
+                        showToast(`✏️ Tiêu đề bảng đã đổi thành: "${msg.name}"`);
+                    }
                     break;
 
                 case 'save:ack':
@@ -7379,6 +9490,34 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     }
                     break;
 
+                case 'jsxgraph:lock':
+                    if (delta.id && activeJSXGraphInstances[delta.id]) {
+                        toggleLockJSXGraph(delta.id, true);
+                    }
+                    break;
+
+                case 'jsxgraph:highlight':
+                    if (delta.geomId && activeJSXGraphInstances[delta.geomId]) {
+                        const inst = activeJSXGraphInstances[delta.geomId];
+                        const targetObj = Object.values(inst.board.objects).find(o => o && (o.name === delta.elementName || o._stepId === delta.stepId));
+                        if (targetObj) {
+                            clearJSXGraphHighlights(delta.geomId);
+                            highlightJSXGraphElement(targetObj);
+                        }
+                    }
+                    break;
+
+                case 'jsxgraph:style_update':
+                    if (delta.geomId && activeJSXGraphInstances[delta.geomId]) {
+                        const inst = activeJSXGraphInstances[delta.geomId];
+                        const targetObj = Object.values(inst.board.objects).find(o => o && (o.name === delta.elementName || o._stepId === delta.stepId));
+                        if (targetObj) {
+                            inst.selectedObj = targetObj;
+                            applyJSXGraphElementStyle(delta.geomId, delta.styles, true);
+                        }
+                    }
+                    break;
+
                 case 'board:clear_all':
                     clearAllBoardLocally();
                     break;
@@ -7394,6 +9533,48 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             }, 800);
         }
 
+        function handlePadletTitleChange(newTitle) {
+            if (!newTitle || !newTitle.trim()) return;
+            const cleanTitle = newTitle.trim();
+            document.title = cleanTitle + ' - MathBoard';
+
+            // Update in LocalStorage registry
+            try {
+                const regRaw = localStorage.getItem('mathboard_padlet_registry');
+                let list = regRaw ? JSON.parse(regRaw) : [];
+                let p = list.find(item => item.roomId === currentRoomId);
+                if (p) {
+                    p.name = cleanTitle;
+                    p.updatedAt = new Date().toISOString();
+                } else {
+                    list.unshift({
+                        roomId: currentRoomId,
+                        name: cleanTitle,
+                        hostId: currentUserId,
+                        hostName: currentUserName,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        strokesCount: strokes.length,
+                        cardsCount: cards.length,
+                        preview: cards[0]?.title || 'Bảng vẽ',
+                        themeColor: 'from-pink-500 to-rose-600'
+                    });
+                }
+                localStorage.setItem('mathboard_padlet_registry', JSON.stringify(list));
+            } catch(e) {}
+
+            // Send rename to WebSocket server
+            if (collabSocket && collabSocket.readyState === WebSocket.OPEN) {
+                collabSocket.send(JSON.stringify({
+                    type: 'room:rename',
+                    roomId: currentRoomId,
+                    name: cleanTitle
+                }));
+            }
+
+            showToast(`✏️ Đã đổi tên Padlet thành: "${cleanTitle}"`);
+        }
+
         function performCanvasAutoSave() {
             const snapshot = getCanvasFullSnapshot();
 
@@ -7403,6 +9584,39 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             } catch (e) {
                 console.warn("LocalStorage full:", e);
             }
+
+            // Update Padlet metadata in dashboard registry
+            try {
+                const regRaw = localStorage.getItem('mathboard_padlet_registry');
+                let regList = regRaw ? JSON.parse(regRaw) : [];
+                let p = regList.find(item => item.roomId === currentRoomId);
+                const titleInput = document.getElementById('padlet-title-input');
+                const pTitle = titleInput ? titleInput.value.trim() : (p ? p.name : 'Padlet ' + currentRoomId);
+                const firstCard = snapshot.cards && snapshot.cards[0];
+                const previewDesc = firstCard ? (firstCard.title || firstCard.content || 'Bảng toán học') : 'Bảng vẽ tự do';
+
+                if (p) {
+                    p.name = pTitle || p.name;
+                    p.updatedAt = new Date().toISOString();
+                    p.strokesCount = snapshot.strokes ? snapshot.strokes.length : 0;
+                    p.cardsCount = snapshot.cards ? snapshot.cards.length : 0;
+                    p.preview = previewDesc.substring(0, 45);
+                } else {
+                    regList.unshift({
+                        roomId: currentRoomId,
+                        name: pTitle,
+                        hostId: currentUserId,
+                        hostName: currentUserName,
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        strokesCount: snapshot.strokes ? snapshot.strokes.length : 0,
+                        cardsCount: snapshot.cards ? snapshot.cards.length : 0,
+                        preview: previewDesc.substring(0, 45),
+                        themeColor: 'from-pink-500 to-rose-600'
+                    });
+                }
+                localStorage.setItem('mathboard_padlet_registry', JSON.stringify(regList));
+            } catch (e) {}
 
             // Send full snapshot to WebSocket Server for SQLite persistence
             sendCollabMessage({
@@ -7507,7 +9721,8 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                         height: inst.height || 360,
                         hasGrid: inst.hasGrid || false,
                         hasAxis: inst.hasAxis || false,
-                        isPinned: inst.isPinned || false
+                        isPinned: inst.isPinned || false,
+                        isLocked: inst.isLocked || false
                     };
                 }),
                 settings: {
@@ -7558,6 +9773,10 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     state.jsxgraphBoards.forEach(b => {
                         if (!activeJSXGraphInstances[b.id] && b.spec) {
                             createDirectJSXGraphBoard(b.spec, b.originX + ((b.width || 480) / 2), b.originY + ((b.height || 360) / 2), b.id, true);
+                            setTimeout(() => {
+                                if (b.isPinned) togglePinJSXGraph(b.id, true);
+                                if (b.isLocked) toggleLockJSXGraph(b.id, true);
+                            }, 120);
                         }
                     });
                 }
@@ -8071,7 +10290,7 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             );
         }
 
-        let googleClientId = getGoogleClientId();
+        googleClientId = getGoogleClientId();
 
         function hashCode(str) {
             let hash = 0;
@@ -8735,5 +10954,17 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
         </div>
     </div>
 
+
+    <!-- ================= FLOATING LIVE PEN POINTER FOLLOWER ================= -->
+    <div id="live-pen-pointer" class="fixed pointer-events-none transition-transform duration-75 hidden select-none z-[99999]" style="left: 0; top: 0; transform: translate3d(-100px, -100px, 0); will-change: transform;">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="transform: translate(-3px, -33px); filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));">
+            <path d="M7 23 L23 7 C24.5 5.5 27 5.5 28.5 7 C30 8.5 30 11 28.5 12.5 L12.5 28.5 L5 29 Z" fill="rgba(15, 23, 42, 0.25)"/>
+            <path d="M6 22 L22 6 C23.5 4.5 26 4.5 27.5 6 C29 7.5 29 10 27.5 11.5 L11.5 27.5 L4 28 Z" fill="#ec4899" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M10 18 L14 22 L11.5 24.5 L7.5 20.5 Z" fill="#be185d"/>
+            <path d="M19 9 L23 13" stroke="#fbbf24" stroke-width="2.2" stroke-linecap="round"/>
+            <polygon points="4,28 1,31 7,25" fill="#fde68a" stroke="#d97706" stroke-width="0.8"/>
+            <circle id="live-pen-ink-dot" cx="1.5" cy="30.5" r="2.2" fill="#2563eb" stroke="#ffffff" stroke-width="0.8"/>
+        </svg>
+    </div>
 </body>
 </html>

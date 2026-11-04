@@ -1,0 +1,52 @@
+{
+  "name": "mathboard-ai",
+  "version": "2.0.0",
+  "private": true,
+  "description": "MathBoard AI (Interactive EdTech Workspace & Math Agent) - An interactive, AI-powered digital canvas that translates natural language into structured geometric visualizations and step-by-step mathematical reasoning.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "start:server": "python start_services.py"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "jsxgraph": "^1.10.1",
+    "katex": "^0.16.9",
+    "lucide-react": "^0.344.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.162.0"
+  },
+  "devDependencies": {
+    "@types/katex": "^0.16.7",
+    "@types/node": "^20.11.24",
+    "@types/react": "^18.2.61",
+    "@types/react-dom": "^18.2.19",
+    "@types/three": "^0.162.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.18",
+    "postcss": "^8.4.35",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MavisMath/Mavischamhoc.git"
+  },
+  "keywords": [
+    "edtech",
+    "mathboard",
+    "padlet",
+    "jsxgraph",
+    "geometry-ai",
+    "gemini",
+    "threejs",
+    "katex",
+    "react",
+    "typescript"
+  ],
+  "author": "MavisMath",
+  "license": "MIT"
+}

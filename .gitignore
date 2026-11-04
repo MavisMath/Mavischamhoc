@@ -1,10 +1,16 @@
-# Environments
+# Environments & Local Keys
+.env
 .env.local
+local_keys.js
 
-# Browser test caches
-scratch/edge_*
-scratch/edge_screenshot_test/
-scratch/edge_whiteboard_test/
+
+# Node & Build artifacts
+node_modules/
+dist/
+
+# Browser test caches & scratch scripts
+scratch/
+
 
 # Python cache & logs
 __pycache__/
