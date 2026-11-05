@@ -70,8 +70,11 @@ def db_get_or_create_room(room_id, user_id=None, user_name=None, requested_role=
             "jsxgraphBoards": [],
             "settings": {"panX": 40, "panY": 40, "zoom": 1}
         })
-        cur.execute('INSERT INTO canvas_states (room_id, version, state_json) VALUES (?, 1, ?)',
-                    (room_id, empty_state))
+        cur.execute('''
+            INSERT INTO canvas_states (room_id, version, state_json)
+            VALUES (?, 1, ?)
+            ON CONFLICT(room_id) DO NOTHING
+        ''', (room_id, empty_state))
         conn.commit()
         is_locked = 0
     else:
@@ -109,6 +112,11 @@ def db_get_canvas_state(room_id):
 def db_save_canvas_state(room_id, state_dict, room_name=None):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+    cur.execute('''
+        INSERT INTO rooms (room_id, name, host_id, is_locked)
+        VALUES (?, ?, ?, 0)
+        ON CONFLICT(room_id) DO NOTHING
+    ''', (room_id, room_name or f"Padlet {room_id}", f"u_host_{int(time.time())}"))
     state_json = json.dumps(state_dict)
     cur.execute('''
         INSERT INTO canvas_states (room_id, version, state_json, updated_at)
