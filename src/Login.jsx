@@ -52,9 +52,10 @@ export const Login = ({ onSuccess, onLoginSuccess, onLoginError }) => {
     const [emailInput, setEmailInput] = useState('');
     const [nameInput, setNameInput] = useState('');
 
-    // Kiểm tra nghiêm ngặt CHỈ CHẤP NHẬN TÀI KHOẢN GOOGLE
-    const isValidGoogleEmail = (email) => {
+    // Kiểm tra tài khoản Google (@gmail.com hoặc Google Workspace for Education / Enterprise)
+    const isValidGoogleEmail = (email, isGoogleOauth = false) => {
         if (!email) return false;
+        if (isGoogleOauth) return true;
         const em = email.trim().toLowerCase();
         const parts = em.split('@');
         if (parts.length !== 2) return false;
@@ -62,7 +63,10 @@ export const Login = ({ onSuccess, onLoginSuccess, onLoginError }) => {
         return domain === 'gmail.com' || 
                domain === 'googlemail.com' || 
                domain === 'google.com' || 
-               domain.endsWith('.google.com');
+               domain.endsWith('.google.com') ||
+               domain.includes('.edu') ||
+               domain.endsWith('.edu.vn') ||
+               domain.endsWith('.ac.vn');
     };
 
     // [Nhiệm vụ 1 & 2]: Bắt sự kiện thành công (handleSuccess) & Lưu trữ cục bộ (mathboard_user)
@@ -83,10 +87,10 @@ export const Login = ({ onSuccess, onLoginSuccess, onLoginError }) => {
             }).join(''));
             const payload = JSON.parse(jsonPayload);
 
-            // Kiểm tra nghiêm ngặt tài khoản Google
-            if (!isValidGoogleEmail(payload.email)) {
-                setAuthError(`⛔ TỪ CHỐI TRUY CẬP: Hệ thống CHỈ CHẤP NHẬN tài khoản Google (@gmail.com hoặc Google Workspace)! Email "${payload.email}" không được phép.`);
-                if (onLoginError) onLoginError('Invalid domain');
+            // Google OAuth đã chứng thực thành công tài khoản người dùng
+            if (!payload || !payload.email) {
+                setAuthError("Không nhận được email hợp lệ từ Google OAuth.");
+                if (onLoginError) onLoginError('No email');
                 return;
             }
 

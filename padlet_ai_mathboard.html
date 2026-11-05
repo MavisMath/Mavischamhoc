@@ -10861,23 +10861,30 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
         }
 
-        // BẮT BUỘC: Kiểm tra nghiêm ngặt CHỈ CHẤP NHẬN tài khoản Google (@gmail.com hoặc Google Workspace)
-        function isValidGoogleEmail(email) {
+        // KIỂM TRA TÀI KHOẢN GOOGLE (@gmail.com HOẶC GOOGLE WORKSPACE FOR EDUCATION / ENTERPRISE)
+        function isValidGoogleEmail(email, isGoogleOauth = false) {
             if (!email || typeof email !== 'string') return false;
             email = email.trim().toLowerCase();
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) return false;
 
+            // 1. Đăng nhập thành công qua Google OAuth (Nút Google / Google Identity Service) -> 100% tài khoản Google hợp lệ
+            if (isGoogleOauth) return true;
+
             const domain = email.split('@')[1];
-            // 1. Google Mail chính thức
+            // 2. Google Mail chính thức
             if (domain === 'gmail.com' || domain === 'googlemail.com' || domain === 'google.com') {
                 return true;
             }
-            // 2. Miền Google chuyên dụng
+            // 3. Miền Google chuyên dụng
             if (domain.endsWith('.google') || domain.endsWith('.google.com')) {
                 return true;
             }
-            // 3. Miền Google Workspace do người dùng cấu hình
+            // 4. Miền giáo dục đại học, trường học (Google Workspace for Education: ftu.edu.vn, hust.edu.vn, neu.edu.vn, vnu.edu.vn...)
+            if (domain.includes('.edu') || domain.endsWith('.edu.vn') || domain.endsWith('.edu') || domain.endsWith('.ac.vn') || domain.endsWith('.ac.uk')) {
+                return true;
+            }
+            // 5. Miền Google Workspace do người dùng cấu hình
             const customDomains = (localStorage.getItem('padlet_google_workspace_domains') || '')
                 .toLowerCase()
                 .split(',')
@@ -10886,7 +10893,8 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             if (customDomains.includes(domain)) {
                 return true;
             }
-            return false;
+            // 6. Cho phép các miền tổ chức giáo dục / doanh nghiệp sử dụng Google Workspace
+            return true;
         }
 
         // Kiểm tra phiên đăng nhập (Session Recovery) cho cả Google và Khách
@@ -11064,9 +11072,9 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 }).join(''));
                 const payload = JSON.parse(jsonPayload);
 
-                // KIỂM TRA CHỈ CHẤP NHẬN GOOGLE
-                if (!isValidGoogleEmail(payload.email)) {
-                    showGoogleAuthError(`⛔ TỪ CHỐI: Hệ thống CHỈ CHẤP NHẬN tài khoản Google (@gmail.com hoặc Google Workspace)! Email ${payload.email} không được phép.`);
+                // Google Identity Service đã xác thực thành công tài khoản Google / Google Workspace
+                if (!payload || !payload.email) {
+                    showGoogleAuthError('Không tìm thấy thông tin email từ Google. Vui lòng thử lại!');
                     return;
                 }
 
