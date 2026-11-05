@@ -2,7 +2,7 @@
 .env
 .env.local
 local_keys.js
-
+env.js
 
 # Node & Build artifacts
 node_modules/
@@ -10,7 +10,6 @@ dist/
 
 # Browser test caches & scratch scripts
 scratch/
-
 
 # Python cache & logs
 __pycache__/
