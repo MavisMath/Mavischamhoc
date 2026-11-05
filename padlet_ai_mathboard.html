@@ -2516,6 +2516,12 @@
 
             item.isEditing = false;
             renderPadletTextDOM(item);
+            if (typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({ action: 'text:upsert', item: { ...item, isEditing: false } });
+            }
+            if (typeof triggerAutoSave === 'function') {
+                triggerAutoSave();
+            }
         }
 
         function setDirectTextFont(id, font) {
@@ -2591,6 +2597,12 @@
                 if (isDragging) {
                     isDragging = false;
                     el.style.zIndex = 30;
+                    if (typeof broadcastCanvasDelta === 'function') {
+                        broadcastCanvasDelta({ action: 'text:upsert', item: { ...item, isEditing: false } });
+                    }
+                    if (typeof triggerAutoSave === 'function') {
+                        triggerAutoSave();
+                    }
                 }
             });
         }
@@ -2685,7 +2697,7 @@
 
         // ================= CARD MANAGEMENT =================
         function addCard(data) {
-            const id = 'card-' + (nextCardId++);
+            const id = data.id || ('card-' + (nextCardId++));
             const cardObj = {
                 id: id,
                 type: data.type || ((data.steps || (data.canvasSpec && data.canvasSpec.steps)) ? '2d' : 'note'),
@@ -2709,6 +2721,15 @@
 
             cards.push(cardObj);
             renderCardToDOM(cardObj);
+
+            if (!arguments[1]) { // If not isRemote
+                if (typeof broadcastCanvasDelta === 'function') {
+                    broadcastCanvasDelta({ action: 'card:upsert', card: cardObj });
+                }
+                if (typeof triggerAutoSave === 'function') {
+                    triggerAutoSave();
+                }
+            }
 
             // Push to global undo history
             const _cardId = cardObj.id;
@@ -3014,6 +3035,18 @@
                         const _prevX = origX, _prevY = origY;
                         const _newX = newX, _newY = newY;
                         const _cid = cardData.id;
+
+                        // Broadcast card / JSXGraph move in real-time
+                        if (typeof broadcastCanvasDelta === 'function') {
+                            if (_cid.startsWith('jxg-geom-')) {
+                                broadcastCanvasDelta({ action: 'jsxgraph:move', id: _cid, x: newX, y: newY });
+                            } else {
+                                broadcastCanvasDelta({ action: 'card:move', cardId: _cid, x: newX, y: newY });
+                            }
+                        }
+                        if (typeof triggerAutoSave === 'function') {
+                            triggerAutoSave();
+                        }
                         pushHistory({
                             type: 'moveCard',
                             label: 'Di chuyển thẻ',
@@ -3687,7 +3720,48 @@
         // ====================================================================
         // DIRECT JSXGRAPH BOARD WIDGET ON WHITEBOARD (WITH FULL IN-CARD TOOLBAR & ELEMENT INSPECTOR)
         // ====================================================================
-        function createDirectJSXGraphBoard(spec, stageCenterX, stageCenterY, customId = null, isRemote = false) {
+        
+        // ================= UNIVERSAL JSXGRAPH SPEC NORMALIZER =================
+        function normalizeJSXGraphSpec(rawSpec) {
+            if (!rawSpec) return { title: 'Hình học động JSXGraph', steps: [], boundingbox: [-6.5, 5, 6.5, -4.5], axis: false, grid: false };
+            let spec = {};
+            try {
+                spec = JSON.parse(JSON.stringify(rawSpec));
+            } catch (e) {
+                spec = Object.assign({}, rawSpec);
+            }
+            const actualSteps = spec.steps || (spec.canvasSpec && spec.canvasSpec.steps) || (spec.spec && spec.spec.steps) || [];
+            const actualBox = spec.boundingbox || (spec.canvasSpec && spec.canvasSpec.boundingbox) || (spec.spec && spec.spec.boundingbox) || [-6.5, 5, 6.5, -4.5];
+            const actualAxis = spec.axis !== undefined ? spec.axis : (spec.canvasSpec && spec.canvasSpec.axis !== undefined ? spec.canvasSpec.axis : false);
+            const actualGrid = spec.grid !== undefined ? spec.grid : (spec.canvasSpec && spec.canvasSpec.grid !== undefined ? spec.canvasSpec.grid : false);
+            const actualTitle = spec.title || (spec.canvasSpec && spec.canvasSpec.title) || (spec.spec && spec.spec.title) || 'Hình học động JSXGraph';
+
+            spec.steps = actualSteps;
+            spec.boundingbox = actualBox;
+            spec.axis = actualAxis;
+            spec.grid = actualGrid;
+            spec.title = actualTitle;
+            return spec;
+        }
+        window.normalizeJSXGraphSpec = normalizeJSXGraphSpec;
+
+        function syncJSXGraphBoardToSpec(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board || !inst.spec || !Array.isArray(inst.spec.steps)) return;
+            inst.spec.steps.forEach(step => {
+                if (step && step.type === 'point') {
+                    const ptName = step.name || step.id;
+                    const ptObj = Object.values(inst.board.objects).find(o => o && (o.name === ptName || o._stepId === step.id));
+                    if (ptObj && typeof ptObj.X === 'function' && typeof ptObj.Y === 'function') {
+                        step.coords = [parseFloat(ptObj.X().toFixed(3)), parseFloat(ptObj.Y().toFixed(3))];
+                    }
+                }
+            });
+        }
+        window.syncJSXGraphBoardToSpec = syncJSXGraphBoardToSpec;
+
+        function createDirectJSXGraphBoard(rawSpec, stageCenterX, stageCenterY, customId = null, isRemote = false) {
+            const spec = normalizeJSXGraphSpec(rawSpec);
             const geomId = customId || ('jxg-geom-' + (nextGeomObjId++));
             const width = spec.width || 560;
             const height = spec.height || 420;
@@ -3790,7 +3864,7 @@
 
                 <!-- Board Canvas Area & Floating Element Inspector -->
                 <div class="relative w-full">
-                    <div id="${jxgInnerId}" class="jxgbox w-full h-[360px] bg-transparent"></div>
+                    <div id="${jxgInnerId}" class="jxgbox w-full h-[360px] bg-transparent" style="width: 100%; height: 360px; min-height: 360px; position: relative;"></div>
                     <!-- Floating Multi-Level In-Card Zoom HUD -->
                     <div class="jxg-zoom-hud absolute bottom-3 right-3 z-30 flex items-center gap-1 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-2xl shadow-xl border border-slate-200/90 text-xs select-none">
                         <button onclick="zoomOutJSXGraph('${geomId}')" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-600 flex items-center justify-center font-bold text-xs transition active:scale-95" title="Thu nhỏ hình (-)">
@@ -3868,8 +3942,9 @@
                     console.warn('[JSXGraph] Box element not found in DOM:', jxgInnerId);
                     return;
                 }
-                const jxgInstance = renderDynamicGeometry(jxgInnerId, spec.steps, {
-                    boundingbox: spec.boundingbox || [-7, 5.5, 7, -5.5],
+                const normSteps = spec.steps || [];
+                const jxgInstance = renderDynamicGeometry(jxgInnerId, normSteps, {
+                    boundingbox: spec.boundingbox || [-6.5, 5, 6.5, -4.5],
                     axis: spec.axis || false,
                     grid: spec.grid || false
                 });
@@ -3877,6 +3952,7 @@
                 activeJSXGraphInstances[geomId] = {
                     ...jxgInstance,
                     spec: JSON.parse(JSON.stringify(spec)),
+                    board: jxgInstance ? jxgInstance.board : null,
                     activeTool: 'select',
                     activeColor: '#2563eb',
                     selectedObj: null,
@@ -3897,6 +3973,8 @@
                     board.on('down', (e) => handleJSXGraphBoardDown(geomId, e));
                     board.on('move', (e) => handleJSXGraphBoardMove(geomId, e));
                     board.on('up', (e) => handleJSXGraphBoardUp(geomId, e));
+                    // Force complete render
+                    try { board.fullUpdate(); } catch(e) {}
                 }
 
                 if (!isRemote) {
@@ -3915,7 +3993,7 @@
                         triggerAutoSave();
                     }
                 }
-            }, 30);
+            }, 40);
 
             showToast(`✨ Đã khởi tạo hình học động: ${spec.title || ''}`);
         }
@@ -8994,9 +9072,19 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
         }
 
         // ================= CHAT LOG RENDERING =================
-        function appendChatMessage(sender, htmlContent, imagePreviewUrl = null) {
+        function appendChatMessage(sender, htmlContent, imagePreviewUrl = null, isRemote = false) {
             const msgId = 'msg-' + Date.now();
             const wrapper = document.createElement('div');
+
+            // Broadcast chat message across room
+            if (!isRemote && typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({
+                    action: 'chat:message',
+                    sender: sender,
+                    htmlContent: htmlContent,
+                    imagePreviewUrl: imagePreviewUrl
+                });
+            }
             wrapper.className = `flex items-start gap-2.5 ${sender === 'user' ? 'justify-end' : ''}`;
             
             if (sender === 'user') {
@@ -9607,8 +9695,64 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     break;
 
                 case 'jsxgraph:create':
-                    if (delta.boardData && !activeJSXGraphInstances[delta.boardData.id]) {
+                    if (delta.boardData) {
                         createDirectJSXGraphBoard(delta.boardData.spec, delta.boardData.stageCenterX, delta.boardData.stageCenterY, delta.boardData.id, true);
+                    }
+                    break;
+
+                case 'jsxgraph:update':
+                    if (delta.id && activeJSXGraphInstances[delta.id]) {
+                        const inst = activeJSXGraphInstances[delta.id];
+                        inst.spec = normalizeJSXGraphSpec(delta.spec);
+                        if (inst.board && inst.spec.steps) {
+                            inst.spec.steps.forEach(st => {
+                                if (st && st.type === 'point' && st.coords) {
+                                    const ptName = st.name || st.id;
+                                    const ptObj = Object.values(inst.board.objects).find(o => o && (o.name === ptName || o._stepId === st.id));
+                                    if (ptObj && typeof ptObj.moveTo === 'function') {
+                                        ptObj.moveTo(st.coords, 0);
+                                    }
+                                }
+                            });
+                            inst.board.update();
+                        }
+                    } else if (delta.id && delta.spec) {
+                        createDirectJSXGraphBoard(delta.spec, 400, 300, delta.id, true);
+                    }
+                    break;
+
+                case 'jsxgraph:move':
+                    if (delta.id) {
+                        const el = document.getElementById(delta.id);
+                        if (el) {
+                            el.style.left = `${delta.x}px`;
+                            el.style.top = `${delta.y}px`;
+                        }
+                        if (activeJSXGraphInstances[delta.id]) {
+                            activeJSXGraphInstances[delta.id].originX = delta.x;
+                            activeJSXGraphInstances[delta.id].originY = delta.y;
+                        }
+                    }
+                    break;
+
+                case 'card:move':
+                    if (delta.cardId) {
+                        const targetCard = cards.find(c => c.id === delta.cardId);
+                        if (targetCard) {
+                            targetCard.x = delta.x;
+                            targetCard.y = delta.y;
+                        }
+                        const cardEl = document.getElementById(delta.cardId);
+                        if (cardEl) {
+                            cardEl.style.left = `${delta.x}px`;
+                            cardEl.style.top = `${delta.y}px`;
+                        }
+                    }
+                    break;
+
+                case 'chat:message':
+                    if (delta.sender && delta.htmlContent) {
+                        appendChatMessage(delta.sender, delta.htmlContent, delta.imagePreviewUrl, true);
                     }
                     break;
 
@@ -9925,8 +10069,9 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 // 5. Restore JSXGraph Dynamic Whiteboard Boards
                 if (Array.isArray(state.jsxgraphBoards)) {
                     state.jsxgraphBoards.forEach(b => {
-                        if (!activeJSXGraphInstances[b.id] && b.spec) {
-                            createDirectJSXGraphBoard(b.spec, b.originX + ((b.width || 480) / 2), b.originY + ((b.height || 360) / 2), b.id, true);
+                        if (b && b.spec) {
+                            const normSpec = normalizeJSXGraphSpec(b.spec);
+                            createDirectJSXGraphBoard(normSpec, (b.originX || 100) + ((b.width || 560) / 2), (b.originY || 100) + ((b.height || 420) / 2), b.id, true);
                             setTimeout(() => {
                                 if (b.isPinned) togglePinJSXGraph(b.id, true);
                                 if (b.isLocked) toggleLockJSXGraph(b.id, true);

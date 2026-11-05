@@ -216,6 +216,140 @@ def db_create_room_with_state(room_id, name, host_id, state_dict=None):
     conn.close()
 
 
+
+def db_apply_canvas_delta(room_id, delta):
+    if not delta or not isinstance(delta, dict) or 'action' not in delta:
+        return
+    action = delta.get('action')
+    state = db_get_canvas_state(room_id)
+    changed = False
+
+    if action == 'stroke:add':
+        stroke = delta.get('stroke')
+        if stroke:
+            strokes = state.setdefault('strokes', [])
+            idx = next((i for i, s in enumerate(strokes) if s.get('id') == stroke.get('id')), -1)
+            if idx >= 0:
+                strokes[idx] = stroke
+            else:
+                strokes.append(stroke)
+            changed = True
+
+    elif action == 'stroke:delete':
+        stroke_id = delta.get('strokeId')
+        if stroke_id:
+            state['strokes'] = [s for s in state.get('strokes', []) if s.get('id') != stroke_id]
+            changed = True
+
+    elif action == 'ink:clear':
+        state['strokes'] = []
+        changed = True
+
+    elif action == 'jsxgraph:create':
+        b_data = delta.get('boardData', {})
+        if b_data and b_data.get('id'):
+            boards = state.setdefault('jsxgraphBoards', [])
+            idx = next((i for i, b in enumerate(boards) if b.get('id') == b_data.get('id')), -1)
+            new_board = {
+                'id': b_data.get('id'),
+                'spec': b_data.get('spec', {}),
+                'originX': int(b_data.get('stageCenterX', 400) - 280),
+                'originY': int(b_data.get('stageCenterY', 300) - 210),
+                'width': 560,
+                'height': 420
+            }
+            if idx >= 0:
+                boards[idx] = new_board
+            else:
+                boards.append(new_board)
+            changed = True
+
+    elif action == 'jsxgraph:update':
+        b_id = delta.get('id')
+        new_spec = delta.get('spec')
+        if b_id and new_spec:
+            boards = state.setdefault('jsxgraphBoards', [])
+            for b in boards:
+                if b.get('id') == b_id:
+                    b['spec'] = new_spec
+                    changed = True
+                    break
+
+    elif action == 'jsxgraph:move':
+        b_id = delta.get('id')
+        x, y = delta.get('x'), delta.get('y')
+        if b_id and x is not None and y is not None:
+            boards = state.setdefault('jsxgraphBoards', [])
+            for b in boards:
+                if b.get('id') == b_id:
+                    b['originX'] = x
+                    b['originY'] = y
+                    changed = True
+                    break
+
+    elif action == 'jsxgraph:delete':
+        b_id = delta.get('id')
+        if b_id:
+            state['jsxgraphBoards'] = [b for b in state.get('jsxgraphBoards', []) if b.get('id') != b_id]
+            changed = True
+
+    elif action == 'text:upsert':
+        item = delta.get('item')
+        if item and item.get('id'):
+            texts = state.setdefault('padletTexts', [])
+            idx = next((i for i, t in enumerate(texts) if t.get('id') == item.get('id')), -1)
+            if idx >= 0:
+                texts[idx] = item
+            else:
+                texts.append(item)
+            changed = True
+
+    elif action == 'text:delete':
+        text_id = delta.get('textId')
+        if text_id:
+            state['padletTexts'] = [t for t in state.get('padletTexts', []) if t.get('id') != text_id]
+            changed = True
+
+    elif action == 'card:upsert':
+        card = delta.get('card')
+        if card and card.get('id'):
+            cards = state.setdefault('cards', [])
+            idx = next((i for i, c in enumerate(cards) if c.get('id') == card.get('id')), -1)
+            if idx >= 0:
+                cards[idx] = card
+            else:
+                cards.append(card)
+            changed = True
+
+    elif action == 'card:move':
+        c_id = delta.get('cardId')
+        x, y = delta.get('x'), delta.get('y')
+        if c_id and x is not None and y is not None:
+            cards = state.setdefault('cards', [])
+            for c in cards:
+                if c.get('id') == c_id:
+                    c['x'] = x
+                    c['y'] = y
+                    changed = True
+                    break
+
+    elif action == 'card:delete':
+        c_id = delta.get('cardId')
+        if c_id:
+            state['cards'] = [c for c in state.get('cards', []) if c.get('id') != c_id]
+            changed = True
+
+    elif action == 'board:clear_all':
+        state['strokes'] = []
+        state['padletTexts'] = []
+        state['cards'] = []
+        state['geometryObjects'] = []
+        state['jsxgraphBoards'] = []
+        changed = True
+
+    if changed:
+        db_save_canvas_state(room_id, state)
+
 # ================= REAL-TIME IN-MEMORY STATE =================
 # active_rooms[room_id] = { ws_response: { 'userId': ..., 'userName': ..., 'role': ..., 'color': ... } }
 active_rooms = {}
@@ -454,6 +588,12 @@ async def websocket_handler(request):
                     if not current_room or client_info.get('role') == 'viewer':
                         continue
                     delta = data.get('delta', {})
+                    # Update SQLite database in real time for instant hydration
+                    try:
+                        db_apply_canvas_delta(current_room, delta)
+                    except Exception as e:
+                        print(f"[DB Delta] Error: {e}")
+                    # Broadcast immediately to all other users
                     await broadcast_to_room(current_room, {
                         'type': 'canvas:delta',
                         'senderId': client_info.get('userId'),
