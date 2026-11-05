@@ -2228,12 +2228,32 @@
             }
         }
 
-        // ================= DIRECT TEXT WRITING ON PADLET =================
+        // ================= DIRECT TEXT WRITING ON PADLET (GOOGLE DOCS STYLE COLLABORATION & RICH FORMATTING) =================
         function triggerQuickAddText() {
-            // Place text in comfortable view
-            const x = 200 - panX + Math.random() * 50;
-            const y = 180 - panY + Math.random() * 50;
+            const x = Math.round(240 - panX + Math.random() * 40);
+            const y = Math.round(180 - panY + Math.random() * 40);
             createDirectPadletText(x, y);
+        }
+
+        function broadcastTextUpdate(item) {
+            if (!item) return;
+            if (typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({ action: 'text:upsert', item: { ...item, isEditing: false } });
+            }
+            if (typeof triggerAutoSave === 'function') {
+                triggerAutoSave();
+            }
+        }
+
+        function getFontSizeLabel(fontSize) {
+            switch (fontSize) {
+                case 'text-sm': return '14';
+                case 'text-base': return '18';
+                case 'text-xl': return '24';
+                case 'text-2xl': return '32';
+                case 'text-4xl': return '40';
+                default: return '24';
+            }
         }
 
         function createDirectPadletText(x, y, initialText = '', options = {}) {
@@ -2242,20 +2262,29 @@
                 id: id,
                 x: x,
                 y: y,
-                width: options.width || 320,
+                width: options.width || 340,
                 height: options.height || (initialText ? null : 110),
                 text: initialText,
-                fontSize: options.fontSize || 'text-xl', // text-base, text-xl, text-2xl, text-3xl
+                fontSize: options.fontSize || 'text-xl', // text-sm (14px), text-base (18px), text-xl (24px), text-2xl (32px), text-4xl (40px)
                 fontFamily: options.fontFamily || 'font-hand', // font-hand, font-sans, font-mono
                 color: options.color || strokeColor || '#1e293b',
-                bgColor: options.bgColor || 'bg-transparent', // bg-transparent, bg-white/95, bg-amber-100/90, bg-sky-100/90, bg-pink-100/90
+                bgColor: options.bgColor || 'bg-transparent',
+                isBold: options.isBold || false,
+                isItalic: options.isItalic || false,
+                isUnderline: options.isUnderline || false,
+                align: options.align || 'left',
+                isLocked: options.isLocked || false,
                 isEditing: !initialText
             };
 
             padletTexts.push(item);
             renderPadletTextDOM(item);
+            
             if (typeof broadcastCanvasDelta === 'function') {
                 broadcastCanvasDelta({ action: 'text:upsert', item: { ...item, isEditing: false } });
+            }
+            if (typeof triggerAutoSave === 'function') {
+                triggerAutoSave();
             }
 
             if (item.isEditing) {
@@ -2277,62 +2306,131 @@
 
             const textEl = document.createElement('div');
             textEl.id = item.id;
-            textEl.className = `padlet-direct-text absolute z-30 group p-3 rounded-2xl select-none ${item.bgColor} ${item.isEditing ? 'editing' : ''}`;
+            const darkBg = (item.bgColor || '').includes('slate-900');
+            textEl.className = `padlet-direct-text absolute z-30 group p-3 rounded-2xl select-none ${item.bgColor} ${item.isEditing ? 'editing ring-2 ring-pink-500/80 shadow-2xl' : 'hover:ring-1 hover:ring-pink-300/60 transition-shadow'} ${item.isLocked ? 'cursor-default' : ''}`;
             textEl.style.left = `${item.x}px`;
             textEl.style.top = `${item.y}px`;
-            textEl.style.width = item.width ? `${item.width}px` : '320px';
+            textEl.style.width = item.width ? `${item.width}px` : '340px';
             if (item.height) {
                 textEl.style.height = `${item.height}px`;
             } else {
                 textEl.style.height = 'auto';
             }
 
-            // Toolbar placement: comfortably above text box, or below if near top of stage
-            const toolbarPlacement = item.y < 65 ? 'top-full mt-2' : 'bottom-full mb-2';
+            const toolbarPlacement = item.y < 70 ? 'top-full mt-2' : 'bottom-full mb-2';
 
             if (item.isEditing) {
                 textEl.innerHTML = `
-                    <!-- Inline Floating Formatting Toolbar (Outside box so it never covers text) -->
-                    <div class="text-format-bar flex items-center gap-1 bg-white/95 backdrop-blur-md px-2.5 py-1.5 rounded-xl shadow-xl border border-slate-200 text-xs ${toolbarPlacement} absolute left-0 z-40 select-none whitespace-nowrap">
-                        <span class="text-slate-400 cursor-move px-1 text-[11px]"><i class="fa-solid fa-grip-vertical"></i></span>
-                        <button onclick="setDirectTextFont('${item.id}', 'font-hand')" title="Chữ viết tay sư phạm" class="px-2 py-0.5 rounded hover:bg-slate-100 font-hand text-base ${item.fontFamily === 'font-hand' ? 'bg-pink-100 text-pink-700 font-bold' : 'text-slate-700'}">✍️ Viết tay</button>
-                        <button onclick="setDirectTextFont('${item.id}', 'font-sans')" title="Chữ in chuẩn" class="px-2 py-0.5 rounded hover:bg-slate-100 font-sans text-xs ${item.fontFamily === 'font-sans' ? 'bg-pink-100 text-pink-700 font-bold' : 'text-slate-700'}">🔤 In</button>
-                        <button onclick="setDirectTextFont('${item.id}', 'font-mono')" title="Chữ toán monospace" class="px-2 py-0.5 rounded hover:bg-slate-100 font-mono text-xs ${item.fontFamily === 'font-mono' ? 'bg-pink-100 text-pink-700 font-bold' : 'text-slate-700'}">⌨️ Mono</button>
-                        <div class="w-[1px] h-3.5 bg-slate-200 mx-0.5"></div>
-                        <button onclick="cycleDirectTextSize('${item.id}')" title="Đổi cỡ chữ" class="px-2 py-0.5 rounded hover:bg-slate-100 text-xs font-semibold text-slate-700">Cỡ chữ</button>
-                        <button onclick="cycleDirectTextWidth('${item.id}')" title="Đổi độ dài/rộng khung nhanh" class="px-2 py-0.5 rounded hover:bg-slate-100 text-xs font-semibold text-slate-700 flex items-center gap-1"><i class="fa-solid fa-arrows-left-right text-[10px]"></i> <span>Rộng</span></button>
-                        <button onclick="cycleDirectTextBg('${item.id}')" title="Đổi màu nền giấy" class="p-1 rounded hover:bg-slate-100 text-amber-500"><i class="fa-solid fa-palette"></i></button>
-                        <button onclick="finishDirectTextEditing('${item.id}')" title="Xong (Ctrl+Enter)" class="px-2.5 py-0.5 rounded bg-emerald-500 text-white font-semibold text-xs hover:bg-emerald-600 flex items-center gap-1 shadow-xs"><i class="fa-solid fa-check"></i> Xong</button>
-                        <button onclick="deletePadletText('${item.id}')" title="Xoá chữ" class="p-1 rounded hover:bg-rose-100 text-slate-400 hover:text-rose-600"><i class="fa-solid fa-trash-can"></i></button>
+                    <!-- Google Docs Rich Floating Formatting Toolbar -->
+                    <div class="text-format-bar flex flex-wrap items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl shadow-2xl border border-slate-200/90 text-xs ${toolbarPlacement} absolute left-0 z-40 select-none whitespace-nowrap animate-in fade-in zoom-in-95 duration-100">
+                        <span class="text-slate-400 cursor-move px-1 text-xs" title="Kéo di chuyển cả hộp chữ"><i class="fa-solid fa-grip-vertical"></i></span>
+                        
+                        <!-- Font Family -->
+                        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg text-slate-700 font-medium">
+                            <button onclick="setDirectTextFont('${item.id}', 'font-hand')" title="Chữ viết tay sư phạm (Caveat)" class="px-2 py-0.5 rounded text-xs transition ${item.fontFamily === 'font-hand' ? 'bg-white text-pink-600 font-bold shadow-2xs' : 'hover:bg-slate-200'}">✍️ Viết tay</button>
+                            <button onclick="setDirectTextFont('${item.id}', 'font-sans')" title="Chữ in chuẩn (Inter)" class="px-2 py-0.5 rounded text-xs transition ${item.fontFamily === 'font-sans' ? 'bg-white text-pink-600 font-bold shadow-2xs' : 'hover:bg-slate-200'}">🔤 In</button>
+                            <button onclick="setDirectTextFont('${item.id}', 'font-mono')" title="Chữ toán Monospace" class="px-2 py-0.5 rounded text-xs transition ${item.fontFamily === 'font-mono' ? 'bg-white text-pink-600 font-bold shadow-2xs' : 'hover:bg-slate-200'}">⌨️ Mono</button>
+                        </div>
+
+                        <!-- Font Size Stepper -->
+                        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg">
+                            <button onclick="changeDirectTextFontSize('${item.id}', -1)" title="Giảm cỡ chữ" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200 text-slate-700 font-bold text-xs"><i class="fa-solid fa-minus text-[9px]"></i></button>
+                            <span class="px-1.5 text-[11px] font-bold text-slate-800 min-w-[24px] text-center">${getFontSizeLabel(item.fontSize)}</span>
+                            <button onclick="changeDirectTextFontSize('${item.id}', 1)" title="Tăng cỡ chữ" class="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-200 text-slate-700 font-bold text-xs"><i class="fa-solid fa-plus text-[9px]"></i></button>
+                        </div>
+
+                        <!-- B / I / U Styling -->
+                        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg text-slate-700 font-bold">
+                            <button onclick="toggleDirectTextBold('${item.id}')" title="In đậm (Bold)" class="w-6 h-5 flex items-center justify-center rounded transition ${item.isBold ? 'bg-pink-100 text-pink-600' : 'hover:bg-slate-200'}">B</button>
+                            <button onclick="toggleDirectTextItalic('${item.id}')" title="In nghiêng (Italic)" class="w-6 h-5 flex items-center justify-center rounded italic font-serif transition ${item.isItalic ? 'bg-pink-100 text-pink-600' : 'hover:bg-slate-200'}">I</button>
+                            <button onclick="toggleDirectTextUnderline('${item.id}')" title="Gạch chân (Underline)" class="w-6 h-5 flex items-center justify-center rounded underline transition ${item.isUnderline ? 'bg-pink-100 text-pink-600' : 'hover:bg-slate-200'}">U</button>
+                        </div>
+
+                        <!-- Text Alignment -->
+                        <div class="flex items-center bg-slate-100 p-0.5 rounded-lg text-slate-600">
+                            <button onclick="setDirectTextAlign('${item.id}', 'left')" title="Căn trái" class="w-5 h-5 flex items-center justify-center rounded ${item.align === 'left' || !item.align ? 'bg-white text-blue-600 shadow-2xs' : 'hover:bg-slate-200'}"><i class="fa-solid fa-align-left text-[10px]"></i></button>
+                            <button onclick="setDirectTextAlign('${item.id}', 'center')" title="Căn giữa" class="w-5 h-5 flex items-center justify-center rounded ${item.align === 'center' ? 'bg-white text-blue-600 shadow-2xs' : 'hover:bg-slate-200'}"><i class="fa-solid fa-align-center text-[10px]"></i></button>
+                            <button onclick="setDirectTextAlign('${item.id}', 'right')" title="Căn phải" class="w-5 h-5 flex items-center justify-center rounded ${item.align === 'right' ? 'bg-white text-blue-600 shadow-2xs' : 'hover:bg-slate-200'}"><i class="fa-solid fa-align-right text-[10px]"></i></button>
+                        </div>
+
+                        <!-- Text Color Palette -->
+                        <div class="relative group/color">
+                            <button class="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center shadow-2xs" style="background-color: ${item.color};" title="Đổi màu chữ"></button>
+                            <div class="hidden group-hover/color:flex absolute top-full mt-1 left-0 bg-white p-1.5 rounded-xl shadow-xl border border-slate-200 gap-1 z-50">
+                                ${['#1e293b', '#2563eb', '#dc2626', '#059669', '#7c3aed', '#ea580c', '#db2777', '#ffffff'].map(c => `
+                                    <button onclick="setDirectTextColor('${item.id}', '${c}')" class="w-4 h-4 rounded-full border border-slate-300 hover:scale-125 transition" style="background-color: ${c};"></button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Paper Note Background Style -->
+                        <button onclick="cycleDirectTextBg('${item.id}')" title="Đổi màu nền giấy / ghi chú" class="px-2 py-0.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-700 font-medium text-xs flex items-center gap-1 border border-amber-200/80">
+                            <i class="fa-solid fa-palette text-[10px]"></i> Nền
+                        </button>
+
+                        <!-- Insert Quick Math Formula -->
+                        <button onclick="insertDirectTextFormula('${item.id}')" title="Chèn nhanh công thức toán $...$" class="px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs flex items-center gap-1 border border-indigo-200">
+                            <i class="fa-solid fa-square-root-variable text-[10px]"></i> + Toán
+                        </button>
+
+                        <div class="w-[1px] h-4 bg-slate-200 mx-0.5"></div>
+
+                        <!-- Duplicate Box -->
+                        <button onclick="duplicateDirectText('${item.id}')" title="Nhân bản hộp chữ" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition"><i class="fa-regular fa-clone text-[11px]"></i></button>
+
+                        <!-- Lock / Pin Box -->
+                        <button onclick="toggleLockDirectText('${item.id}')" title="${item.isLocked ? 'Mở khóa vị trí' : 'Khóa vị trí hộp chữ'}" class="p-1 rounded-lg hover:bg-slate-100 ${item.isLocked ? 'text-purple-600' : 'text-slate-400 hover:text-slate-700'} transition"><i class="fa-solid ${item.isLocked ? 'fa-lock' : 'fa-lock-open'} text-[11px]"></i></button>
+
+                        <!-- Done (Ctrl+Enter) -->
+                        <button onclick="finishDirectTextEditing('${item.id}')" title="Hoàn tất soạn thảo (Ctrl+Enter)" class="px-2.5 py-0.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shadow-xs transition active:scale-95">
+                            <i class="fa-solid fa-check"></i> Xong
+                        </button>
+
+                        <!-- Delete -->
+                        <button onclick="deletePadletText('${item.id}')" title="Xóa chữ" class="p-1 rounded-lg hover:bg-rose-100 text-slate-400 hover:text-rose-600 transition"><i class="fa-solid fa-trash-can text-[11px]"></i></button>
                     </div>
 
                     <!-- Textarea filling container -->
                     <textarea placeholder="Nhập lời giải hoặc công thức... (hỗ trợ $công thức$)" 
-                        class="w-full bg-transparent outline-none resize-none leading-relaxed border-none p-0 ${item.fontFamily} ${item.fontSize}" 
+                        class="w-full bg-transparent outline-none resize-none leading-relaxed border-none p-0 ${item.fontFamily} ${item.fontSize} ${item.isBold ? 'font-bold' : ''} ${item.isItalic ? 'italic' : ''} ${item.isUnderline ? 'underline' : ''} text-${item.align || 'left'}" 
                         style="color: ${item.color}; ${item.height ? 'height: calc(100% - 6px);' : 'min-height: 50px;'}"
                     >${escapeHtml(item.text)}</textarea>
 
                     <!-- Interactive Drag Resize Handles -->
-                    <!-- Right Edge Resize Handle (Dài / Ngắn) -->
                     <div class="resize-edge-handle absolute top-2 right-0 bottom-6 w-2.5 cursor-ew-resize hover:bg-pink-500/50 rounded-r-xl transition z-50 group-hover:bg-pink-400/30" title="Kéo ngang để chỉnh độ dài/ngắn của khung"></div>
-                    <!-- Bottom Edge Resize Handle (Cao / Thấp) -->
                     <div class="resize-bottom-handle absolute bottom-0 left-2 right-6 h-2.5 cursor-ns-resize hover:bg-pink-500/50 rounded-b-xl transition z-50 group-hover:bg-pink-400/30" title="Kéo dọc để chỉnh độ to/nhỏ của khung"></div>
-                    <!-- Corner Grip (To / Nhỏ cả 2 chiều) -->
                     <div class="resize-corner-handle absolute bottom-1 right-1 w-6 h-6 flex items-center justify-center cursor-nwse-resize text-slate-400 hover:text-pink-600 hover:scale-125 transition select-none z-50 rounded-br-xl" title="Kéo để điều chỉnh độ to nhỏ, dài ngắn của khung chứa text">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                            <path d="M10 2L2 10M10 6L6 10M10 10L9 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        </svg>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 2L2 10M10 6L6 10M10 10L9 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                     </div>
                 `;
 
                 directTextsContainer.appendChild(textEl);
                 const textarea = textEl.querySelector('textarea');
                 
+                let textInputDebounce = null;
                 textarea.addEventListener('input', () => {
                     item.text = textarea.value;
                     if (!item.height) {
                         autoResizeTextarea(textarea, item);
                     }
+                    // Google Docs Real-time: stream updates as you type!
+                    clearTimeout(textInputDebounce);
+                    textInputDebounce = setTimeout(() => {
+                        if (typeof broadcastCanvasDelta === 'function') {
+                            broadcastCanvasDelta({
+                                action: 'text:upsert',
+                                item: {
+                                    ...item,
+                                    isEditing: false,
+                                    typingUserId: currentUserId,
+                                    typingUserName: (currentUserName || 'Cộng tác viên')
+                                }
+                            });
+                        }
+                        if (typeof triggerAutoSave === 'function') {
+                            triggerAutoSave();
+                        }
+                    }, 120);
                 });
 
                 textarea.addEventListener('keydown', (e) => {
@@ -2342,10 +2440,10 @@
                     }
                 });
 
-                // Auto blur finish if click outside
+                // Auto blur finish if clicked outside
                 setTimeout(() => {
                     function handleOutsideClick(e) {
-                        if (!textEl.contains(e.target)) {
+                        if (!textEl.contains(e.target) && !e.target.closest('.text-format-bar')) {
                             finishDirectTextEditing(item.id);
                             document.removeEventListener('mousedown', handleOutsideClick);
                         }
@@ -2357,16 +2455,27 @@
                 // Display Mode with KaTeX math rendering and edit on double-click
                 textEl.innerHTML = `
                     <!-- Quick action on hover -->
-                    <div class="hidden group-hover:flex items-center gap-1 bg-white/95 backdrop-blur-md px-2 py-0.5 rounded-xl shadow-md border border-slate-200 text-xs ${toolbarPlacement} absolute left-0 z-30 select-none whitespace-nowrap">
+                    <div class="hidden group-hover:flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-xl shadow-lg border border-slate-200 text-xs ${toolbarPlacement} absolute left-0 z-30 select-none whitespace-nowrap">
                         <span class="text-slate-400 cursor-move px-1 text-[11px]"><i class="fa-solid fa-grip-vertical"></i></span>
-                        <button onclick="editDirectText('${item.id}')" class="px-1.5 py-0.5 text-xs text-pink-600 font-semibold hover:underline">Sửa</button>
-                        <button onclick="cycleDirectTextWidth('${item.id}')" title="Đổi độ dài/rộng" class="px-1.5 py-0.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded">Rộng</button>
-                        <button onclick="cycleDirectTextBg('${item.id}')" class="p-1 text-slate-400 hover:text-slate-700"><i class="fa-solid fa-palette text-[10px]"></i></button>
-                        <button onclick="deletePadletText('${item.id}')" class="p-1 text-slate-400 hover:text-rose-600"><i class="fa-solid fa-trash text-[10px]"></i></button>
+                        <button onclick="editDirectText('${item.id}')" class="px-2 py-0.5 text-xs bg-pink-50 hover:bg-pink-100 text-pink-700 font-bold rounded-md flex items-center gap-1 transition">
+                            <i class="fa-solid fa-pen text-[10px]"></i> Sửa
+                        </button>
+                        <button onclick="cycleDirectTextBg('${item.id}')" class="p-1 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-100 transition" title="Đổi màu nền">
+                            <i class="fa-solid fa-palette text-[11px]"></i>
+                        </button>
+                        <button onclick="duplicateDirectText('${item.id}')" class="p-1 text-slate-500 hover:text-slate-800 rounded hover:bg-slate-100 transition" title="Nhân bản">
+                            <i class="fa-regular fa-clone text-[11px]"></i>
+                        </button>
+                        <button onclick="toggleLockDirectText('${item.id}')" class="p-1 ${item.isLocked ? 'text-purple-600' : 'text-slate-400 hover:text-slate-700'} rounded hover:bg-slate-100 transition" title="${item.isLocked ? 'Mở khóa' : 'Khóa'}">
+                            <i class="fa-solid ${item.isLocked ? 'fa-lock' : 'fa-lock-open'} text-[11px]"></i>
+                        </button>
+                        <button onclick="deletePadletText('${item.id}')" class="p-1 text-slate-400 hover:text-rose-600 rounded hover:bg-rose-50 transition" title="Xóa">
+                            <i class="fa-solid fa-trash-can text-[11px]"></i>
+                        </button>
                     </div>
 
                     <!-- Rendered text content -->
-                    <div class="cursor-pointer whitespace-pre-wrap leading-relaxed overflow-hidden ${item.fontFamily} ${item.fontSize}" style="color: ${item.color}; word-break: break-word;">
+                    <div class="cursor-pointer whitespace-pre-wrap leading-relaxed overflow-hidden ${item.fontFamily} ${item.fontSize} ${item.isBold ? 'font-bold' : ''} ${item.isItalic ? 'italic' : ''} ${item.isUnderline ? 'underline' : ''} text-${item.align || 'left'}" style="color: ${item.color}; word-break: break-word;">
                         ${renderMathOrPlainText(item.text)}
                     </div>
 
@@ -2374,9 +2483,7 @@
                     <div class="resize-edge-handle absolute top-2 right-0 bottom-6 w-2.5 cursor-ew-resize hover:bg-pink-500/50 rounded-r-xl transition z-50 group-hover:bg-pink-400/30 opacity-0 group-hover:opacity-100" title="Kéo ngang để chỉnh độ dài/ngắn của khung"></div>
                     <div class="resize-bottom-handle absolute bottom-0 left-2 right-6 h-2.5 cursor-ns-resize hover:bg-pink-500/50 rounded-b-xl transition z-50 group-hover:bg-pink-400/30 opacity-0 group-hover:opacity-100" title="Kéo dọc để chỉnh độ to/nhỏ của khung"></div>
                     <div class="resize-corner-handle absolute bottom-1 right-1 w-6 h-6 flex items-center justify-center cursor-nwse-resize text-slate-400 hover:text-pink-600 hover:scale-125 transition select-none z-50 rounded-br-xl opacity-0 group-hover:opacity-100" title="Kéo để điều chỉnh độ to nhỏ, dài ngắn của khung chứa text">
-                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                            <path d="M10 2L2 10M10 6L6 10M10 10L9 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                        </svg>
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 2L2 10M10 6L6 10M10 10L9 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                     </div>
                 `;
 
@@ -2388,18 +2495,22 @@
                     editDirectText(item.id);
                 });
 
-                // Auto render KaTeX if equations exist
-                renderMathInElement(textEl, {
-                    delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false}
-                    ],
-                    macros: {
-                        "\\overparen": "\\overset{\\frown}{#1}",
-                        "\\arc": "\\overset{\\frown}{#1}"
-                    },
-                    throwOnError: false
-                });
+                // Render KaTeX for mathematical equations
+                try {
+                    renderMathInElement(textEl, {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false}
+                        ],
+                        macros: {
+                            "\\overparen": "\\overset{\\frown}{#1}",
+                            "\\arc": "\\overset{\\frown}{#1}"
+                        },
+                        throwOnError: false
+                    });
+                } catch (e) {
+                    console.warn('[KaTeX Text] Render error:', e);
+                }
             }
 
             // Draggable & Resizable handlers
@@ -2454,6 +2565,7 @@
                     window.removeEventListener('mousemove', onMouseMove);
                     window.removeEventListener('mouseup', onMouseUp);
                     el.style.zIndex = item.isEditing ? 40 : 25;
+                    broadcastTextUpdate(item);
                 }
 
                 window.addEventListener('mousemove', onMouseMove);
@@ -2469,22 +2581,6 @@
             if (bottomHandle) {
                 bottomHandle.addEventListener('mousedown', (e) => startResize(e, false, true));
             }
-        }
-
-        function cycleDirectTextWidth(id) {
-            const widths = [240, 360, 520, 720];
-            const item = padletTexts.find(t => t.id === id);
-            if (!item) return;
-            const currentW = item.width || 320;
-            let nextW = widths[0];
-            for (let w of widths) {
-                if (w > currentW + 25) {
-                    nextW = w;
-                    break;
-                }
-            }
-            item.width = nextW;
-            renderPadletTextDOM(item);
         }
 
         function editDirectText(id) {
@@ -2515,13 +2611,10 @@
             }
 
             item.isEditing = false;
+            delete item.typingUserId;
+            delete item.typingUserName;
             renderPadletTextDOM(item);
-            if (typeof broadcastCanvasDelta === 'function') {
-                broadcastCanvasDelta({ action: 'text:upsert', item: { ...item, isEditing: false } });
-            }
-            if (typeof triggerAutoSave === 'function') {
-                triggerAutoSave();
-            }
+            broadcastTextUpdate(item);
         }
 
         function setDirectTextFont(id, font) {
@@ -2529,30 +2622,144 @@
             if (!item) return;
             item.fontFamily = font;
             renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
         }
 
-        function cycleDirectTextSize(id) {
-            const sizes = ['text-base', 'text-xl', 'text-2xl', 'text-3xl'];
+        function changeDirectTextFontSize(id, direction) {
+            const sizes = ['text-sm', 'text-base', 'text-xl', 'text-2xl', 'text-4xl'];
             const item = padletTexts.find(t => t.id === id);
             if (!item) return;
-            const currentIndex = sizes.indexOf(item.fontSize);
-            item.fontSize = sizes[(currentIndex + 1) % sizes.length];
+            let idx = sizes.indexOf(item.fontSize);
+            if (idx === -1) idx = 2;
+            idx = Math.max(0, Math.min(sizes.length - 1, idx + direction));
+            item.fontSize = sizes[idx];
             renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
+        }
+
+        function toggleDirectTextBold(id) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            item.isBold = !item.isBold;
+            renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
+        }
+
+        function toggleDirectTextItalic(id) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            item.isItalic = !item.isItalic;
+            renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
+        }
+
+        function toggleDirectTextUnderline(id) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            item.isUnderline = !item.isUnderline;
+            renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
+        }
+
+        function setDirectTextAlign(id, align) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            item.align = align;
+            renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
+        }
+
+        function setDirectTextColor(id, color) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            item.color = color;
+            renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
         }
 
         function cycleDirectTextBg(id) {
-            const bgs = ['bg-transparent', 'bg-white/95 shadow-md border border-slate-200', 'bg-amber-100/90 shadow-md border border-amber-300', 'bg-sky-100/90 shadow-md border border-sky-300', 'bg-pink-100/90 shadow-md border border-pink-300'];
+            const bgs = [
+                'bg-transparent',
+                'bg-white/95 shadow-md border border-slate-200/90',
+                'bg-amber-100/95 shadow-md border border-amber-300',
+                'bg-sky-100/95 shadow-md border border-sky-300',
+                'bg-pink-100/95 shadow-md border border-pink-300',
+                'bg-emerald-100/95 shadow-md border border-emerald-300',
+                'bg-slate-900/95 shadow-xl border border-slate-700 text-white'
+            ];
             const item = padletTexts.find(t => t.id === id);
             if (!item) return;
             const currentIndex = bgs.indexOf(item.bgColor);
             item.bgColor = bgs[(currentIndex + 1) % bgs.length];
+            if (item.bgColor.includes('slate-900') && item.color === '#1e293b') {
+                item.color = '#ffffff';
+            } else if (!item.bgColor.includes('slate-900') && item.color === '#ffffff') {
+                item.color = '#1e293b';
+            }
             renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
         }
 
-        function deletePadletText(id) {
+        function insertDirectTextFormula(id) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            const sampleFormula = '$y = ax^2 + bx + c$';
+            const textarea = document.querySelector(`#${item.id} textarea`);
+            if (textarea) {
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const val = textarea.value;
+                textarea.value = val.substring(0, start) + sampleFormula + val.substring(end);
+                item.text = textarea.value;
+                textarea.focus();
+                textarea.setSelectionRange(start + 1, start + sampleFormula.length - 1);
+            } else {
+                item.text = (item.text || '') + ' ' + sampleFormula;
+                renderPadletTextDOM(item);
+            }
+            broadcastTextUpdate(item);
+        }
+
+        function duplicateDirectText(id) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            createDirectPadletText(item.x + 30, item.y + 30, item.text, {
+                width: item.width,
+                height: item.height,
+                fontSize: item.fontSize,
+                fontFamily: item.fontFamily,
+                color: item.color,
+                bgColor: item.bgColor,
+                isBold: item.isBold,
+                isItalic: item.isItalic,
+                isUnderline: item.isUnderline,
+                align: item.align
+            });
+            showToast('📋 Đã nhân bản hộp chữ');
+        }
+
+        function toggleLockDirectText(id) {
+            const item = padletTexts.find(t => t.id === id);
+            if (!item) return;
+            item.isLocked = !item.isLocked;
+            renderPadletTextDOM(item);
+            broadcastTextUpdate(item);
+            showToast(item.isLocked ? '🔒 Đã khóa vị trí chữ' : '🔓 Đã mở khóa vị trí chữ');
+        }
+
+        function deletePadletText(id, isRemote = false) {
             padletTexts = padletTexts.filter(t => t.id !== id);
             const el = document.getElementById(id);
             if (el) el.remove();
+            if (!isRemote) {
+                if (typeof broadcastCanvasDelta === 'function') {
+                    broadcastCanvasDelta({ action: 'text:delete', textId: id });
+                }
+                if (typeof triggerAutoSave === 'function') {
+                    triggerAutoSave();
+                }
+                showToast('🗑️ Đã xóa chữ');
+            }
         }
 
         function clearAllDirectTexts() {
@@ -2572,6 +2779,7 @@
             let origX, origY;
 
             el.addEventListener('mousedown', (e) => {
+                if (item.isLocked) return;
                 if (currentTool !== 'hand' && !e.target.closest('.cursor-move')) return;
                 if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.closest('button') || e.target.closest('.resize-corner-handle') || e.target.closest('.resize-edge-handle') || e.target.closest('.resize-bottom-handle')) return;
                 isDragging = true;
@@ -2597,12 +2805,7 @@
                 if (isDragging) {
                     isDragging = false;
                     el.style.zIndex = 30;
-                    if (typeof broadcastCanvasDelta === 'function') {
-                        broadcastCanvasDelta({ action: 'text:upsert', item: { ...item, isEditing: false } });
-                    }
-                    if (typeof triggerAutoSave === 'function') {
-                        triggerAutoSave();
-                    }
+                    broadcastTextUpdate(item);
                 }
             });
         }
@@ -3759,6 +3962,26 @@
             });
         }
         window.syncJSXGraphBoardToSpec = syncJSXGraphBoardToSpec;
+        function resetJSXGraphView(geomId) {
+            const inst = activeJSXGraphInstances[geomId];
+            if (!inst || !inst.board || !inst.spec) return;
+            const targetBox = inst.spec.boundingbox || [-6.5, 5, 6.5, -4.5];
+            inst.board.setBoundingBox(targetBox, false);
+            try { inst.board.fullUpdate(); } catch(e) {}
+            showToast('🎯 Đã căn giữa lại hình vẽ về vị trí chuẩn');
+            if (typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({
+                    action: 'jsxgraph:update',
+                    id: geomId,
+                    spec: { ...inst.spec, boundingbox: targetBox }
+                });
+            }
+            if (typeof triggerAutoSave === 'function') {
+                triggerAutoSave();
+            }
+        }
+        window.resetJSXGraphView = resetJSXGraphView;
+
 
         function createDirectJSXGraphBoard(rawSpec, stageCenterX, stageCenterY, customId = null, isRemote = false) {
             const spec = normalizeJSXGraphSpec(rawSpec);
@@ -3887,6 +4110,9 @@
                         </div>
                         <button onclick="zoomInJSXGraph('${geomId}')" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-600 flex items-center justify-center font-bold text-xs transition active:scale-95" title="Phóng to hình (+)">
                             <i class="fa-solid fa-plus"></i>
+                        </button>
+                        <button onclick="resetJSXGraphView('${geomId}')" class="w-7 h-7 rounded-xl bg-slate-100 hover:bg-pink-100 text-slate-700 hover:text-pink-600 flex items-center justify-center font-bold text-xs transition active:scale-95" title="Căn giữa lại đồ thị / hình vẽ (Reset View)">
+                            <i class="fa-solid fa-crosshairs"></i>
                         </button>
 
                     </div>
@@ -9704,17 +9930,22 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     if (delta.id && activeJSXGraphInstances[delta.id]) {
                         const inst = activeJSXGraphInstances[delta.id];
                         inst.spec = normalizeJSXGraphSpec(delta.spec);
-                        if (inst.board && inst.spec.steps) {
-                            inst.spec.steps.forEach(st => {
-                                if (st && st.type === 'point' && st.coords) {
-                                    const ptName = st.name || st.id;
-                                    const ptObj = Object.values(inst.board.objects).find(o => o && (o.name === ptName || o._stepId === st.id));
-                                    if (ptObj && typeof ptObj.moveTo === 'function') {
-                                        ptObj.moveTo(st.coords, 0);
+                        if (inst.board) {
+                            if (delta.spec && delta.spec.boundingbox) {
+                                try { inst.board.setBoundingBox(delta.spec.boundingbox, false); } catch(e) {}
+                            }
+                            if (inst.spec.steps) {
+                                inst.spec.steps.forEach(st => {
+                                    if (st && st.type === 'point' && st.coords) {
+                                        const ptName = st.name || st.id;
+                                        const ptObj = Object.values(inst.board.objects).find(o => o && (o.name === ptName || o._stepId === st.id));
+                                        if (ptObj && typeof ptObj.moveTo === 'function') {
+                                            ptObj.moveTo(st.coords, 0);
+                                        }
                                     }
-                                }
-                            });
-                            inst.board.update();
+                                });
+                            }
+                            try { inst.board.fullUpdate(); } catch(e) {}
                         }
                     } else if (delta.id && delta.spec) {
                         createDirectJSXGraphBoard(delta.spec, 400, 300, delta.id, true);
@@ -10298,30 +10529,51 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
         // ================= REMOTE TEXTS & CARDS =================
         function upsertRemoteDirectText(item) {
             if (!item || !item.id) return;
-            const existing = padletTexts.find(t => t.id === item.id);
-            if (existing) {
-                Object.assign(existing, item, { isEditing: false });
-                const el = document.getElementById(item.id);
-                if (el) {
-                    el.style.left = `${item.x}px`;
-                    el.style.top = `${item.y}px`;
-                    const p = el.querySelector('.direct-text-display');
-                    if (p) p.innerHTML = renderFormattedDirectText(item.text);
+            const existingIdx = padletTexts.findIndex(t => t.id === item.id);
+            const cleanItem = { ...item, isEditing: false };
+
+            if (existingIdx !== -1) {
+                // If local user is currently actively editing this specific text, do not steal focus
+                const localEl = document.getElementById(item.id);
+                const localTextarea = localEl ? localEl.querySelector('textarea') : null;
+                if (localTextarea && document.activeElement === localTextarea) {
+                    padletTexts[existingIdx] = { ...padletTexts[existingIdx], ...cleanItem, isEditing: true };
+                    return;
                 }
+                padletTexts[existingIdx] = cleanItem;
             } else {
-                const newItem = { ...item, isEditing: false };
-                padletTexts.push(newItem);
-                renderPadletTextDOM(newItem);
+                padletTexts.push(cleanItem);
+            }
+
+            renderPadletTextDOM(cleanItem);
+
+            // If collaborator is actively typing, display Google Docs presence indicator
+            if (item.typingUserName && item.typingUserId !== currentUserId) {
+                showCollaboratorTypingBadge(item.id, item.typingUserName);
             }
         }
 
-        function deleteDirectTextLocally(id) {
-            const idx = padletTexts.findIndex(t => t.id === id);
-            if (idx !== -1) {
-                padletTexts.splice(idx, 1);
-                const el = document.getElementById(id);
-                if (el) el.remove();
+        function showCollaboratorTypingBadge(textId, userName) {
+            const el = document.getElementById(textId);
+            if (!el) return;
+            el.classList.add('ring-2', 'ring-pink-500', 'ring-offset-2');
+            let badge = el.querySelector('.collab-typing-badge');
+            if (!badge) {
+                badge = document.createElement('div');
+                badge.className = 'collab-typing-badge absolute -top-6 right-2 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-bold shadow-lg flex items-center gap-1 z-50 animate-pulse whitespace-nowrap';
+                el.appendChild(badge);
             }
+            badge.innerHTML = `<i class="fa-solid fa-pen text-[9px]"></i> ${escapeHtml(userName)} đang gõ...`;
+            
+            clearTimeout(el._typingTimer);
+            el._typingTimer = setTimeout(() => {
+                el.classList.remove('ring-2', 'ring-pink-500', 'ring-offset-2');
+                if (badge) badge.remove();
+            }, 1800);
+        }
+
+        function deleteDirectTextLocally(id) {
+            deletePadletText(id, true);
         }
 
         function upsertRemoteCard(cardData) {
