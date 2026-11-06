@@ -12,7 +12,7 @@
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 **MathBoard AI** is a modern, collaborative educational platform designed for secondary and high school educators, students, and researchers. It bridges the gap between natural language problem statements and dynamic mathematical models.
 
 * **Source Code**: [https://github.com/MavisMath/Mavischamhoc](https://github.com/MavisMath/Mavischamhoc)
@@ -20,7 +20,7 @@
 
 ---
 
-## ✨ Key Features & Architectural Highlights
+## Key Features & Architectural Highlights
 
 ### 1. Google Docs-style Document Management Hub
 - Authentic **Google Docs Dashboard**: Search bar with real-time filtering, ownership toggles, and grid/list view switchers.
@@ -57,7 +57,7 @@
 
 ---
 
-## 📂 Project Architecture
+## Project Architecture
 
 ```
 Web padlet/
@@ -95,7 +95,7 @@ Web padlet/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Prerequisites
 - Python 3.9+ (for WebSocket server & Local HTTP service)
@@ -116,5 +116,5 @@ npm run dev
 
 ---
 
-## 📄 License
+## License
 This project is licensed under the MIT License - see the LICENSE file for details.
