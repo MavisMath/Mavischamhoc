@@ -141,7 +141,7 @@
         .drawing-layer.eraser-active circle,
         .drawing-layer.eraser-active polygon {
             pointer-events: stroke;
-            cursor: cell;
+            cursor: inherit !important;
         }
         .drawing-layer.eraser-active path:hover,
         .drawing-layer.eraser-active line:hover,
@@ -219,9 +219,16 @@
             cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M3 25 L8 23 L23 8 C24 7 24 5 23 4 L21 2 C20 1 18 1 17 2 L2 17 L1 25 Z' fill='%23f59e0b' stroke='%23ffffff' stroke-width='1.5'/%3E%3Ccircle cx='2' cy='25' r='1.5' fill='%23dc2626'/%3E%3C/svg%3E") 2 25, crosshair !important;
         }
 
-        /* Eraser with hotspot at exact center (12, 12) */
-        .cursor-eraser {
-            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='rgba(239, 68, 68, 0.25)' stroke='%23ef4444' stroke-width='1.8' stroke-dasharray='3,2'/%3E%3Ccircle cx='12' cy='12' r='1.5' fill='%23ef4444'/%3E%3C/svg%3E") 12 12, cell !important;
+        /* Eraser Cursors with dynamic sizes: Small (14px radius), Medium (30px radius), Large (65px radius) */
+        .cursor-eraser,
+        .cursor-eraser-medium {
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='27' fill='rgba(239, 68, 68, 0.20)' stroke='%23ef4444' stroke-width='1.8' stroke-dasharray='4,3'/%3E%3Ccircle cx='30' cy='30' r='2' fill='%23ef4444'/%3E%3C/svg%3E") 30 30, cell !important;
+        }
+        .cursor-eraser-small {
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Ccircle cx='14' cy='14' r='12' fill='rgba(239, 68, 68, 0.22)' stroke='%23ef4444' stroke-width='1.5' stroke-dasharray='3,2'/%3E%3Ccircle cx='14' cy='14' r='1.5' fill='%23ef4444'/%3E%3C/svg%3E") 14 14, cell !important;
+        }
+        .cursor-eraser-large {
+            cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Ccircle cx='60' cy='60' r='56' fill='rgba(239, 68, 68, 0.16)' stroke='%23ef4444' stroke-width='2.2' stroke-dasharray='6,4'/%3E%3Ccircle cx='60' cy='60' r='2.5' fill='%23ef4444'/%3E%3C/svg%3E") 60 60, cell !important;
         }
 
         .cursor-text-tool {
@@ -493,10 +500,24 @@
                 <i class="fa-solid fa-font text-base"></i>
             </button>
 
-            <!-- 4. CỤC TẨY (ERASER) - Chỉ tẩy nét vẽ tay -->
-            <button onclick="setWhiteboardTool('eraser')" id="tool-eraser" title="Tẩy nét vẽ tay (Phím E)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50 transition">
-                <i class="fa-solid fa-eraser text-sm"></i>
-            </button>
+            <!-- 4. CỤC TẨY (ERASER) - Chọn mức to / nhỏ / vừa -->
+            <div class="relative">
+                <button onclick="handleEraserButtonClick()" id="tool-eraser" title="Tẩy nét vẽ tay (Phím E) - Nhấp để chọn kích cỡ (Nhỏ, Vừa, To)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-rose-600 hover:bg-rose-50 transition">
+                    <i class="fa-solid fa-eraser text-sm"></i>
+                </button>
+                <!-- Mini popover chọn kích cỡ tẩy -->
+                <div id="eraser-size-popover" class="hidden absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md rounded-2xl p-1.5 shadow-2xl border border-rose-200 flex items-center gap-1 z-50 animate-in fade-in zoom-in-95 duration-100 whitespace-nowrap">
+                    <button type="button" onclick="selectEraserSize('small')" id="btn-eraser-size-small" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition flex items-center gap-1.5" title="Tẩy chi tiết (Bán kính nhỏ 14px)">
+                        <span class="w-2 h-2 rounded-full bg-rose-400"></span> Nhỏ
+                    </button>
+                    <button type="button" onclick="selectEraserSize('medium')" id="btn-eraser-size-medium" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-300 transition flex items-center gap-1.5" title="Tẩy thông thường (Bán kính vừa 30px)">
+                        <span class="w-3.5 h-3.5 rounded-full bg-rose-500"></span> Vừa
+                    </button>
+                    <button type="button" onclick="selectEraserSize('large')" id="btn-eraser-size-large" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition flex items-center gap-1.5" title="Tẩy nhanh vùng rộng (Bán kính to 65px)">
+                        <span class="w-5 h-5 rounded-full bg-rose-600"></span> To
+                    </button>
+                </div>
+            </div>
 
             <!-- 5. Bút dạ quang tô sáng -->
             <button onclick="setWhiteboardTool('highlighter')" id="tool-highlighter" title="Bút dạ quang tô sáng (Phím B)" class="tool-btn w-10 h-10 rounded-full flex items-center justify-center text-amber-500 hover:bg-amber-50 transition">
@@ -521,25 +542,14 @@
                 </div>
             </div>
 
-            <!-- Stroke Width Selector -->
+            <!-- Stroke Width / Eraser Size Selector -->
             <div class="relative">
-                <button onclick="toggleStrokeWidthPicker()" id="current-width-btn" title="Độ dày nét bút" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 rounded-lg flex items-center gap-1 transition">
+                <button onclick="toggleStrokeWidthPicker()" id="current-width-btn" title="Kích thước nét vẽ / cục tẩy" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 rounded-lg flex items-center gap-1 transition">
                     <span id="current-width-text">3px</span>
                     <i class="fa-solid fa-chevron-up text-[9px] text-slate-400"></i>
                 </button>
-                <div id="stroke-width-popover" class="hidden absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl p-2 shadow-2xl border border-slate-200 flex flex-col gap-1 w-28 z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <button onclick="selectStrokeWidth(1.5, '1.5px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition">
-                        <div class="w-4 h-[1.5px] bg-slate-800 rounded-full"></div> Mảnh
-                    </button>
-                    <button onclick="selectStrokeWidth(3, '3px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-2 transition bg-slate-50">
-                        <div class="w-4 h-[3px] bg-slate-800 rounded-full"></div> Vừa
-                    </button>
-                    <button onclick="selectStrokeWidth(5, '5px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition">
-                        <div class="w-4 h-[5px] bg-slate-800 rounded-full"></div> Đậm
-                    </button>
-                    <button onclick="selectStrokeWidth(8, '8px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition">
-                        <div class="w-4 h-[8px] bg-slate-800 rounded-full"></div> Lớn
-                    </button>
+                <div id="stroke-width-popover" class="hidden absolute bottom-12 left-1/2 transform -translate-x-1/2 bg-white rounded-2xl p-2 shadow-2xl border border-slate-200 flex flex-col gap-1 w-36 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <!-- Dynamic choices rendered by renderStrokeWidthPopoverContent -->
                 </div>
             </div>
 
@@ -1851,9 +1861,10 @@
                 if (boardViewport) boardViewport.classList.add('cursor-highlighter');
                 deselectStroke();
             } else if (tool === 'eraser') {
-                if (badge) badge.textContent = 'Cục tẩy: Chỉ xóa nét vẽ tay (không xóa thẻ hay hình)';
+                if (badge) badge.textContent = `Cục tẩy (${getEraserSizeLabel(eraserSize)}): Chỉ xóa nét vẽ tay`;
                 if (badgeIcon) badgeIcon.className = 'fa-solid fa-eraser text-rose-600';
-                if (boardViewport) boardViewport.classList.add('cursor-eraser');
+                updateEraserCursor();
+                updateEraserSizeUI();
                 if (svgLayer) svgLayer.classList.add('eraser-active');
                 deselectStroke();
             } else if (tool === 'text') {
@@ -1861,6 +1872,25 @@
                 if (badgeIcon) badgeIcon.className = 'fa-solid fa-font text-blue-600';
                 if (boardViewport) boardViewport.classList.add('cursor-text-tool');
                 deselectStroke();
+            }
+
+            // If not eraser, close eraser size popover and restore width display
+            if (tool !== 'eraser') {
+                const ep = document.getElementById('eraser-size-popover');
+                if (ep) ep.classList.add('hidden');
+                const widthBtnText = document.getElementById('current-width-text');
+                if (widthBtnText) widthBtnText.textContent = strokeWidth + 'px';
+            }
+            // Dim color picker dot when eraser is active
+            const colorDot = document.getElementById('current-color-dot');
+            if (colorDot) {
+                if (tool === 'eraser') {
+                    colorDot.style.opacity = '0.4';
+                    colorDot.title = 'Màu vẽ (chỉ áp dụng cho bút)';
+                } else {
+                    colorDot.style.opacity = '1';
+                    colorDot.title = 'Chọn màu bút vẽ / chữ';
+                }
             }
 
             closeAllPopovers();
@@ -1996,9 +2026,10 @@
                 return;
             }
 
-            // Eraser mode: check if clicked on stroke or near point
+            // Eraser mode: check if clicked on stroke or near point (screen-scaled radius)
             if (currentTool === 'eraser') {
-                eraseStrokesNear(getStageCoords(e), 28);
+                const effRadius = (ERASER_RADII[eraserSize] || 30) / (zoom || 1);
+                eraseStrokesNear(getStageCoords(e), effRadius);
                 isDrawing = true;
                 return;
             }
@@ -2071,7 +2102,8 @@
             const pt = getStageCoords(e);
 
             if (currentTool === 'eraser') {
-                eraseStrokesNear(pt, 28);
+                const effRadius = (ERASER_RADII[eraserSize] || 30) / (zoom || 1);
+                eraseStrokesNear(pt, effRadius);
                 return;
             }
 
@@ -2984,10 +3016,146 @@
             }
         }
 
+        // ================= ERASER SIZE CONTROLS (Nhỏ, Vừa, To) =================
+        let eraserSize = 'medium'; // 'small', 'medium', 'large'
+        try {
+            const savedSize = localStorage.getItem('mathboard_eraser_size');
+            if (savedSize && ['small', 'medium', 'large'].includes(savedSize)) {
+                eraserSize = savedSize;
+            }
+        } catch(e) {}
+
+        const ERASER_RADII = {
+            small: 14,
+            medium: 30,
+            large: 65
+        };
+
+        function getEraserSizeLabel(size) {
+            if (size === 'small') return 'Nhỏ';
+            if (size === 'large') return 'To';
+            return 'Vừa';
+        }
+
+        function updateEraserCursor() {
+            if (!boardViewport) return;
+            boardViewport.classList.remove('cursor-eraser', 'cursor-eraser-small', 'cursor-eraser-medium', 'cursor-eraser-large');
+            if (currentTool === 'eraser') {
+                const cls = 'cursor-eraser-' + (eraserSize || 'medium');
+                boardViewport.classList.add(cls);
+                boardViewport.classList.add('cursor-eraser');
+            }
+        }
+
+        function updateEraserSizeUI() {
+            if (currentTool === 'eraser') {
+                const widthBtnText = document.getElementById('current-width-text');
+                if (widthBtnText) {
+                    widthBtnText.innerHTML = `<span class="flex items-center gap-1 text-rose-600 font-semibold"><i class="fa-solid fa-eraser text-[10px]"></i> ${getEraserSizeLabel(eraserSize)}</span>`;
+                }
+            }
+            ['small', 'medium', 'large'].forEach(s => {
+                const btn = document.getElementById(`btn-eraser-size-${s}`);
+                if (!btn) return;
+                if (s === eraserSize) {
+                    btn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-bold bg-rose-100 text-rose-700 border border-rose-300 transition flex items-center gap-1.5';
+                } else {
+                    btn.className = 'px-2.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-rose-50 hover:text-rose-600 transition flex items-center gap-1.5';
+                }
+            });
+        }
+
+        function selectEraserSize(size) {
+            eraserSize = size;
+            try { localStorage.setItem('mathboard_eraser_size', size); } catch(e) {}
+            updateEraserSizeUI();
+            updateEraserCursor();
+            const ep = document.getElementById('eraser-size-popover');
+            if (ep) ep.classList.add('hidden');
+            const sp = document.getElementById('stroke-width-popover');
+            if (sp) sp.classList.add('hidden');
+            if (currentTool !== 'eraser') {
+                setWhiteboardTool('eraser');
+            } else {
+                const badge = document.getElementById('mode-status-text');
+                if (badge) badge.textContent = `Cục tẩy (${getEraserSizeLabel(size)}): Chỉ xóa nét vẽ tay`;
+            }
+            showToast(`🧹 Cục tẩy: Mức ${getEraserSizeLabel(size)} (${ERASER_RADII[size]}px)`);
+        }
+
+        function cycleEraserSize() {
+            const order = ['small', 'medium', 'large'];
+            const nextIdx = (order.indexOf(eraserSize) + 1) % order.length;
+            selectEraserSize(order[nextIdx]);
+        }
+
+        function handleEraserButtonClick() {
+            const pop = document.getElementById('eraser-size-popover');
+            if (currentTool !== 'eraser') {
+                setWhiteboardTool('eraser');
+                if (pop) {
+                    pop.classList.remove('hidden');
+                    clearTimeout(window._eraserPopTimer);
+                    window._eraserPopTimer = setTimeout(() => {
+                        if (pop) pop.classList.add('hidden');
+                    }, 4000);
+                }
+            } else {
+                if (pop) pop.classList.toggle('hidden');
+            }
+        }
+
+        function renderStrokeWidthPopoverContent() {
+            const pop = document.getElementById('stroke-width-popover');
+            if (!pop) return;
+            if (currentTool === 'eraser') {
+                pop.innerHTML = `
+                    <div class="px-2 py-1 text-[10px] font-bold text-rose-500 uppercase tracking-wider flex items-center justify-between">
+                        <span>Mức cục tẩy</span>
+                        <span class="text-[9px] font-normal text-slate-400">Phím E</span>
+                    </div>
+                    <button onclick="selectEraserSize('small')" class="px-2 py-1.5 hover:bg-rose-50 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2.5 transition ${eraserSize === 'small' ? 'bg-rose-50 text-rose-600 font-bold' : ''}">
+                        <div class="w-2.5 h-2.5 rounded-full border border-rose-400 bg-rose-200"></div> Nhỏ (14px)
+                    </button>
+                    <button onclick="selectEraserSize('medium')" class="px-2 py-1.5 hover:bg-rose-50 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2.5 transition ${eraserSize === 'medium' ? 'bg-rose-50 text-rose-600 font-bold' : ''}">
+                        <div class="w-3.5 h-3.5 rounded-full border border-rose-500 bg-rose-300"></div> Vừa (30px)
+                    </button>
+                    <button onclick="selectEraserSize('large')" class="px-2 py-1.5 hover:bg-rose-50 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2.5 transition ${eraserSize === 'large' ? 'bg-rose-50 text-rose-600 font-bold' : ''}">
+                        <div class="w-5 h-5 rounded-full border border-rose-600 bg-rose-400"></div> To (65px)
+                    </button>
+                    <div class="my-1 border-t border-slate-100"></div>
+                    <button onclick="clearAllInk(); closeAllPopovers();" class="px-2 py-1.5 hover:bg-red-50 text-red-600 rounded-xl text-xs font-medium flex items-center gap-2 transition">
+                        <i class="fa-solid fa-trash-can text-xs"></i> Xoá toàn bộ nét
+                    </button>
+                `;
+            } else {
+                pop.innerHTML = `
+                    <div class="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Độ dày nét bút</div>
+                    <button onclick="selectStrokeWidth(1.5, '1.5px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition ${strokeWidth === 1.5 ? 'bg-slate-100 font-bold text-blue-600' : ''}">
+                        <div class="w-4 h-[1.5px] bg-slate-800 rounded-full"></div> Mảnh (1.5px)
+                    </button>
+                    <button onclick="selectStrokeWidth(3, '3px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-800 flex items-center gap-2 transition ${strokeWidth === 3 ? 'bg-slate-100 font-bold text-blue-600' : ''}">
+                        <div class="w-4 h-[3px] bg-slate-800 rounded-full"></div> Vừa (3px)
+                    </button>
+                    <button onclick="selectStrokeWidth(5, '5px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition ${strokeWidth === 5 ? 'bg-slate-100 font-bold text-blue-600' : ''}">
+                        <div class="w-4 h-[5px] bg-slate-800 rounded-full"></div> Đậm (5px)
+                    </button>
+                    <button onclick="selectStrokeWidth(8, '8px')" class="px-2 py-1.5 hover:bg-slate-100 rounded-xl text-xs font-medium text-slate-700 flex items-center gap-2 transition ${strokeWidth === 8 ? 'bg-slate-100 font-bold text-blue-600' : ''}">
+                        <div class="w-4 h-[8px] bg-slate-800 rounded-full"></div> Lớn (8px)
+                    </button>
+                `;
+            }
+        }
+
         function toggleStrokeWidthPicker() {
             const pop = document.getElementById('stroke-width-popover');
-            pop.classList.toggle('hidden');
-            document.getElementById('color-palette-popover').classList.add('hidden');
+            if (!pop) return;
+            const willOpen = pop.classList.contains('hidden');
+            closeAllPopovers();
+            if (willOpen) {
+                renderStrokeWidthPopoverContent();
+                pop.classList.remove('hidden');
+            }
         }
 
         function selectStrokeWidth(w) {
@@ -3000,9 +3168,14 @@
         }
 
         function closeAllPopovers() {
-            document.getElementById('color-palette-popover').classList.add('hidden');
-            document.getElementById('stroke-width-popover').classList.add('hidden');
-            document.getElementById('clear-dropdown').classList.add('hidden');
+            const cp = document.getElementById('color-palette-popover');
+            if (cp) cp.classList.add('hidden');
+            const sp = document.getElementById('stroke-width-popover');
+            if (sp) sp.classList.add('hidden');
+            const cd = document.getElementById('clear-dropdown');
+            if (cd) cd.classList.add('hidden');
+            const ep = document.getElementById('eraser-size-popover');
+            if (ep) ep.classList.add('hidden');
         }
 
         function toggleClearMenu() {
@@ -3047,7 +3220,11 @@
                 } else if (e.key.toLowerCase() === 'b') {
                     setWhiteboardTool('highlighter');
                 } else if (e.key.toLowerCase() === 'e') {
-                    setWhiteboardTool('eraser');
+                    if (currentTool === 'eraser') {
+                        cycleEraserSize();
+                    } else {
+                        setWhiteboardTool('eraser');
+                    }
                 } else if (e.key.toLowerCase() === 't') {
                     setWhiteboardTool('text');
                 } else if (e.key.toLowerCase() === 's') {
