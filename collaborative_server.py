@@ -574,7 +574,7 @@ async def websocket_handler(request):
     WebSocket endpoint on /ws (and /ws/).
     Upgrades incoming HTTP connection to full-duplex WebSocket.
     """
-    ws = web.WebSocketResponse(heartbeat=25.0)
+    ws = web.WebSocketResponse(heartbeat=25.0, max_msg_size=32 * 1024 * 1024)
     await ws.prepare(request)
 
     client_info = {}
@@ -846,7 +846,7 @@ async def index_handler(request):
 # ================= SERVER INITIALIZATION =================
 def create_app():
     init_db()
-    app = web.Application(middlewares=[cors_middleware])
+    app = web.Application(middlewares=[cors_middleware], client_max_size=32 * 1024 * 1024)
 
     # REST APIs
     app.router.add_get('/health', api_health)

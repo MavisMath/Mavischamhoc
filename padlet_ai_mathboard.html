@@ -367,6 +367,13 @@
                 <span class="hidden lg:inline">Chèn công thức</span>
             </button>
 
+            <!-- Insert Image / Upload -->
+            <button onclick="document.getElementById('board-image-upload-input').click()" title="Chèn ảnh từ máy tính (hoặc nhấn Ctrl+V / Kéo thả ảnh trực tiếp)" class="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition shadow-2xs">
+                <i class="fa-regular fa-image text-emerald-600"></i>
+                <span class="hidden xl:inline">Chèn ảnh</span>
+            </button>
+            <input type="file" id="board-image-upload-input" accept="image/*" class="hidden" onchange="handleBoardImageUpload(event)" />
+
             <!-- Export Board to Image -->
             <button onclick="exportBoardToImage()" title="Tải ảnh toàn bộ bảng bài làm" class="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm rounded-xl transition">
                 <i class="fa-solid fa-download"></i>
@@ -1112,6 +1119,9 @@
         let startPanX = 0;
         let startPanY = 0;
 
+        // Global Stage Coordinates for Paste & Cursor Placement
+        let lastMouseStageCoords = null;
+
         // Whiteboard Placement Mode State & Helpers
         let isPlacingDrawingMode = false;
         let pendingPlacementSpec = null;
@@ -1524,6 +1534,213 @@
                 const pt = getStageCoords(e);
                 createDirectPadletText(pt.x, pt.y, '', { bgColor: 'bg-transparent' });
             });
+
+            // Track last mouse stage coordinates for clipboard pasting & placing
+            boardViewport.addEventListener('mousemove', (e) => {
+                lastMouseStageCoords = getStageCoords(e);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (boardViewport) {
+                    const rect = boardViewport.getBoundingClientRect();
+                    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                        lastMouseStageCoords = getStageCoords(e);
+                    }
+                }
+            });
+
+            // Drag and Drop files or text directly onto whiteboard canvas
+            boardViewport.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+            });
+            boardViewport.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (e.dataTransfer) {
+                    e.dataTransfer.dropEffect = 'copy';
+                }
+            });
+            boardViewport.addEventListener('drop', (e) => {
+                if (isUserTypingInInput(e.target)) return;
+                e.preventDefault();
+                const coords = getStageCoords(e);
+                
+                // 1. Files dropped
+                if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                        const file = e.dataTransfer.files[i];
+                        if (file.type && file.type.startsWith('image/')) {
+                            const offsetCoords = { x: coords.x + i * 35, y: coords.y + i * 35 };
+                            processImageFileForCanvas(file, offsetCoords);
+                        }
+                    }
+                    return;
+                }
+
+                // 2. Text dropped
+                if (e.dataTransfer) {
+                    const text = e.dataTransfer.getData('text/plain');
+                    if (text && text.trim().length > 0) {
+                        pasteTextToCanvas(text, coords);
+                    }
+                }
+            });
+
+            // Global paste listener for Whiteboard canvas
+            window.addEventListener('paste', handleGlobalCanvasPaste);
+        }
+
+        // ================= UNIVERSAL CANVAS CLIPBOARD PASTE & DRAG-DROP ENGINE =================
+        function isUserTypingInInput(target) {
+            if (!target) return false;
+            const tagName = target.tagName ? target.tagName.toUpperCase() : '';
+            if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return true;
+            if (target.isContentEditable) return true;
+            if (target.closest && target.closest('input, textarea, select, [contenteditable="true"], #chat-drawer, #chat-input-container')) return true;
+            return false;
+        }
+
+        function getCenterViewportStageCoords() {
+            if (!boardViewport) return { x: 200, y: 150 };
+            const rect = boardViewport.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            return getStageCoords({ clientX: centerX, clientY: centerY });
+        }
+
+        function getTargetCoordsForPaste() {
+            if (lastMouseStageCoords && !isNaN(lastMouseStageCoords.x) && !isNaN(lastMouseStageCoords.y)) {
+                return { ...lastMouseStageCoords };
+            }
+            return getCenterViewportStageCoords();
+        }
+
+        function processImageFileForCanvas(file, targetStageCoords) {
+            if (!file || !file.type.startsWith('image/')) {
+                showToast('⚠️ Vui lòng chọn tệp hình ảnh hợp lệ (PNG, JPG, WEBP, GIF, SVG)');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const rawDataUrl = evt.target.result;
+                const img = new Image();
+                img.onload = function() {
+                    let width = img.width || 400;
+                    let height = img.height || 300;
+                    const maxDimension = 1400;
+
+                    let finalDataUrl = rawDataUrl;
+                    if ((width > maxDimension || height > maxDimension) && !file.type.includes('svg')) {
+                        const ratio = Math.min(maxDimension / width, maxDimension / height);
+                        const targetW = Math.round(width * ratio);
+                        const targetH = Math.round(height * ratio);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = targetW;
+                        canvas.height = targetH;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, targetW, targetH);
+                        finalDataUrl = canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.92);
+                        width = targetW;
+                        height = targetH;
+                    }
+
+                    const displayWidth = Math.min(540, Math.max(320, Math.round(width * 0.75)));
+                    const coords = targetStageCoords || getTargetCoordsForPaste();
+                    const posX = Math.round(coords.x - displayWidth / 2);
+                    const posY = Math.round(coords.y - 120);
+
+                    const cleanFileName = file.name ? file.name.replace(/\.[^/.]+$/, "") : 'Hình ảnh dán';
+                    const card = addCard({
+                        type: 'image',
+                        title: '🖼️ ' + cleanFileName,
+                        imageUrl: finalDataUrl,
+                        width: displayWidth,
+                        x: posX,
+                        y: posY,
+                        color: 'bg-white'
+                    });
+
+                    showToast('📸 Đã dán hình ảnh lên bảng thành công!');
+                };
+                img.src = rawDataUrl;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleBoardImageUpload(e) {
+            const file = e.target.files && e.target.files[0];
+            if (file) {
+                const coords = getTargetCoordsForPaste();
+                processImageFileForCanvas(file, coords);
+            }
+            e.target.value = '';
+        }
+
+        function pasteTextToCanvas(rawText, coords) {
+            if (!rawText || !rawText.trim()) return;
+            const cleanText = rawText.trim();
+            const targetCoords = coords || getTargetCoordsForPaste();
+
+            // Direct Image URL detection
+            if (/^https?:\/\/.+\.(png|jpg|jpeg|webp|gif|svg)(\?.*)?$/i.test(cleanText)) {
+                addCard({
+                    type: 'image',
+                    title: '🖼️ Hình ảnh liên kết',
+                    imageUrl: cleanText,
+                    width: 440,
+                    x: Math.round(targetCoords.x - 220),
+                    y: Math.round(targetCoords.y - 120),
+                    color: 'bg-white'
+                });
+                showToast('📸 Đã dán hình ảnh từ liên kết web lên bảng!');
+                return;
+            }
+
+            const initialWidth = Math.min(560, Math.max(300, Math.min(cleanText.length * 9, 480)));
+            const posX = Math.round(targetCoords.x - initialWidth / 2);
+            const posY = Math.round(targetCoords.y - 40);
+
+            createDirectPadletText(posX, posY, cleanText, {
+                width: initialWidth,
+                fontSize: 'text-xl',
+                fontFamily: 'font-hand'
+            });
+            showToast('📝 Đã dán chữ lên bảng');
+        }
+
+        function handleGlobalCanvasPaste(e) {
+            if (isUserTypingInInput(e.target)) return;
+
+            const clipboardData = e.clipboardData || window.clipboardData;
+            if (!clipboardData) return;
+
+            // 1. Check for image item in clipboard
+            const items = clipboardData.items;
+            let foundImage = false;
+            if (items && items.length > 0) {
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.type && item.type.startsWith('image/')) {
+                        const file = item.getAsFile();
+                        if (file) {
+                            e.preventDefault();
+                            foundImage = true;
+                            const coords = getTargetCoordsForPaste();
+                            processImageFileForCanvas(file, coords);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (foundImage) return;
+
+            // 2. Check for text in clipboard
+            const text = clipboardData.getData('text/plain');
+            if (text && text.trim().length > 0) {
+                e.preventDefault();
+                const coords = getTargetCoordsForPaste();
+                pasteTextToCanvas(text, coords);
+            }
         }
 
         function zoomCanvas(delta) {
@@ -2905,6 +3122,7 @@
                 id: id,
                 type: data.type || ((data.steps || (data.canvasSpec && data.canvasSpec.steps)) ? '2d' : 'note'),
                 title: data.title || 'Bài tập mới',
+                imageUrl: data.imageUrl || null,
                 content: data.content || '',
                 shapeType: data.shapeType || 'custom',
                 customGeometryData: data.customGeometryData || null,
@@ -2918,8 +3136,9 @@
                 total_time: data.total_time || 5,
                 x: data.x !== undefined ? data.x : Math.max(80, 200 - panX),
                 y: data.y !== undefined ? data.y : Math.max(80, 150 - panY),
-                width: data.width || 380,
-                color: data.color || 'bg-white'
+                width: data.width || (data.type === 'image' ? 440 : 380),
+                color: data.color || 'bg-white',
+                isPinned: data.isPinned || false
             };
 
             cards.push(cardObj);
@@ -2974,6 +3193,8 @@
                 badgeHtml = `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200 flex items-center gap-1"><i class="fa-solid fa-gauge-high text-[10px]"></i> Đại số: Chuyển động</span>`;
             } else if (card.type === 'word_work') {
                 badgeHtml = `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1"><i class="fa-solid fa-faucet-drip text-[10px]"></i> Đại số: Năng suất / Bể nước</span>`;
+            } else if (card.type === 'image') {
+                badgeHtml = `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1"><i class="fa-regular fa-image text-[10px]"></i> Hình ảnh dán</span>`;
             } else {
                 badgeHtml = `<span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${theme.badge}">Ghi chú bài tập</span>`;
             }
@@ -3010,18 +3231,29 @@
                 </div>
 
                 <div class="mt-3 pt-2 border-t border-black/5 flex items-center justify-between text-[11px] text-slate-400">
-                    <span>${card.type === '3d' ? 'Giữ chuột xoay 360°' : (card.type === '2d' ? 'Đồ thị toạ độ chính xác' : (card.type.startsWith('word_') ? 'Sơ đồ đại số tương tác' : 'Kéo để di chuyển'))}</span>
+                    <span>${card.type === '3d' ? 'Giữ chuột xoay 360°' : (card.type === '2d' ? 'Đồ thị toạ độ chính xác' : (card.type === 'image' ? 'Kéo để di chuyển • Kéo góc để đổi cỡ' : (card.type.startsWith('word_') ? 'Sơ đồ đại số tương tác' : 'Kéo để di chuyển')))}</span>
                     <button onclick="downloadCardVisual('${card.id}')" class="hover:text-pink-600 flex items-center gap-1 transition">
                         <i class="fa-solid fa-download text-[10px]"></i> Lưu ảnh
                     </button>
+                </div>
+
+                <!-- Interactive Corner Resize Handle -->
+                <div class="card-resize-handle absolute bottom-1 right-1 w-6 h-6 flex items-center justify-center cursor-nwse-resize text-slate-400 hover:text-pink-600 hover:scale-125 transition select-none z-50 rounded-br-2xl opacity-40 hover:opacity-100" title="Kéo để chỉnh kích thước thẻ">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M10 2L2 10M10 6L6 10M10 10L9 10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                 </div>
             `;
 
             cardsContainer.appendChild(cardEl);
             makeCardDraggable(cardEl, card);
+            makeCardResizable(cardEl, card);
 
             const visualBox = document.getElementById(`visual-container-${card.id}`);
-            if (card.type === '2d' || (card.steps && card.steps.length > 0) || (card.canvasSpec && card.canvasSpec.steps)) {
+            if (card.type === 'image') {
+                visualBox.className = 'my-2 rounded-2xl overflow-hidden bg-slate-950/5 border border-slate-200/80 relative flex items-center justify-center p-1.5';
+                visualBox.innerHTML = `
+                    <img src="${card.imageUrl || ''}" alt="${escapeHtml(card.title || 'Ảnh')}" class="w-full h-auto max-h-[650px] object-contain rounded-xl select-none pointer-events-none transition-transform" />
+                `;
+            } else if (card.type === '2d' || (card.steps && card.steps.length > 0) || (card.canvasSpec && card.canvasSpec.steps)) {
                 render2DDiagram(visualBox, card);
             } else if (card.type === '3d') {
                 render3DModel(visualBox, card);
@@ -3031,6 +3263,11 @@
                 renderWorkPoolWordProblem(visualBox, card);
             } else {
                 visualBox.remove();
+            }
+
+            if (card.type === 'image' && !card.content) {
+                const contentEl = cardEl.querySelector('.card-content-text');
+                if (contentEl) contentEl.style.display = 'none';
             }
 
             renderMathInElement(cardEl, {
@@ -3066,10 +3303,12 @@
             addCard({
                 type: source.type,
                 title: source.title + ' (Bản sao)',
+                imageUrl: source.imageUrl || null,
                 content: source.content,
                 shapeType: source.shapeType,
                 customGeometryData: source.customGeometryData,
                 canvasSpec: source.canvasSpec,
+                steps: source.steps,
                 s: source.s,
                 v_water: source.v_water,
                 total_time: source.total_time,
@@ -3266,6 +3505,50 @@
                         });
                     }
                 }
+            });
+        }
+
+        function makeCardResizable(cardEl, cardData) {
+            if (!cardEl) return;
+            const handle = cardEl.querySelector('.card-resize-handle');
+            if (!handle) return;
+            let isResizing = false;
+            let startX = 0;
+            let origWidth = 0;
+
+            handle.addEventListener('mousedown', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                isResizing = true;
+                startX = e.clientX;
+                origWidth = cardEl.offsetWidth;
+                cardEl.style.zIndex = 100;
+
+                function onMouseMove(moveEvent) {
+                    if (!isResizing) return;
+                    const dx = (moveEvent.clientX - startX) / zoom;
+                    const newWidth = Math.max(240, Math.min(1400, Math.round(origWidth + dx)));
+                    cardData.width = newWidth;
+                    cardEl.style.width = `${newWidth}px`;
+                }
+
+                function onMouseUp() {
+                    if (!isResizing) return;
+                    isResizing = false;
+                    cardEl.style.zIndex = 'auto';
+                    window.removeEventListener('mousemove', onMouseMove);
+                    window.removeEventListener('mouseup', onMouseUp);
+
+                    if (typeof broadcastCanvasDelta === 'function') {
+                        broadcastCanvasDelta({ action: 'card:upsert', card: cardData });
+                    }
+                    if (typeof triggerAutoSave === 'function') {
+                        triggerAutoSave();
+                    }
+                }
+
+                window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
             });
         }
 
@@ -9438,6 +9721,12 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             const card = cards.find(c => c.id === cardId);
             if (!card) return;
 
+            if (card.type === 'image' && card.imageUrl) {
+                triggerDownload(card.imageUrl, `${(card.title || 'anh_padlet').replace(/\s+/g, '_')}.png`);
+                showToast('Đã tải hình ảnh về máy');
+                return;
+            }
+
             if (card.type === '3d' && active3DInstances[cardId]) {
                 const renderer = active3DInstances[cardId].renderer;
                 const dataUrl = renderer.domElement.toDataURL('image/png');
@@ -10192,15 +10481,23 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     fontSize: t.fontSize,
                     fontFamily: t.fontFamily,
                     color: t.color,
-                    bgColor: t.bgColor
+                    bgColor: t.bgColor,
+                    isBold: t.isBold,
+                    isItalic: t.isItalic,
+                    isUnderline: t.isUnderline,
+                    align: t.align,
+                    isLocked: t.isLocked
                 })),
                 cards: cards.map(c => ({
                     id: c.id,
                     type: c.type,
                     title: c.title,
+                    imageUrl: c.imageUrl || null,
                     content: c.content,
                     shapeType: c.shapeType,
+                    customGeometryData: c.customGeometryData,
                     canvasSpec: c.canvasSpec,
+                    steps: c.steps,
                     s: c.s,
                     v_water: c.v_water,
                     total_time: c.total_time,
@@ -10581,6 +10878,14 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             const existing = cards.find(c => c.id === cardData.id);
             if (!existing) {
                 addCard(cardData, true);
+            } else {
+                Object.assign(existing, cardData);
+                const el = document.getElementById(cardData.id);
+                if (el) {
+                    el.style.left = `${cardData.x}px`;
+                    el.style.top = `${cardData.y}px`;
+                    if (cardData.width) el.style.width = `${cardData.width}px`;
+                }
             }
         }
 
