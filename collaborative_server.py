@@ -836,7 +836,10 @@ async def cors_middleware(request, handler):
 
 # ================= ROOT HANDLER =================
 async def index_handler(request):
-    # Default route: serve padlet_ai_mathboard.html
+    # Default route: serve index.html (Padlet Dashboard)
+    index_path = BASE_DIR / 'index.html'
+    if index_path.exists():
+        return web.FileResponse(index_path)
     padlet_path = BASE_DIR / 'padlet_ai_mathboard.html'
     if padlet_path.exists():
         return web.FileResponse(padlet_path)

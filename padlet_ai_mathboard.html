@@ -337,18 +337,6 @@
                 <span id="mode-status-text">Chế độ Di chuyển (Hand)</span>
             </div>
 
-            <!-- Pen & Eraser Quick Tools in Top Navigation -->
-            <div class="flex items-center gap-1 bg-slate-100/90 p-0.5 rounded-xl border border-slate-200" id="top-drawing-tools-group">
-                <button onclick="setWhiteboardTool('pen')" id="top-btn-pen" title="Bút vẽ tự do (Phím P)" class="top-tool-btn flex items-center gap-1.5 px-2.5 py-1.5 text-slate-700 hover:text-blue-600 hover:bg-white rounded-lg text-xs font-semibold transition">
-                    <i class="fa-solid fa-pen text-blue-500"></i>
-                    <span class="hidden sm:inline">Bút vẽ</span>
-                </button>
-                <button onclick="setWhiteboardTool('eraser')" id="top-btn-eraser" title="Cục tẩy nét vẽ (Phím E)" class="top-tool-btn flex items-center gap-1.5 px-2.5 py-1.5 text-slate-700 hover:text-rose-600 hover:bg-white rounded-lg text-xs font-semibold transition">
-                    <i class="fa-solid fa-eraser text-rose-500"></i>
-                    <span class="hidden sm:inline">Cục tẩy</span>
-                </button>
-            </div>
-
             <!-- Quick Add Text Button -->
             <button onclick="triggerQuickAddText()" class="flex items-center gap-2 px-3 py-2 bg-pink-50 hover:bg-pink-100 text-pink-700 text-sm font-semibold rounded-xl transition shadow-2xs border border-pink-200">
                 <i class="fa-solid fa-font"></i>
@@ -1803,32 +1791,6 @@
             document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
             const activeBtn = document.getElementById('tool-' + tool);
             if (activeBtn) activeBtn.classList.add('active');
-
-            // Update Top Navigation Toolbar Buttons (Pen & Eraser)
-            const topPenBtn = document.getElementById('top-btn-pen');
-            const topEraserBtn = document.getElementById('top-btn-eraser');
-            if (topPenBtn) {
-                if (tool === 'pen') {
-                    topPenBtn.className = 'top-tool-btn flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-semibold shadow-sm transition';
-                    const icon = topPenBtn.querySelector('i');
-                    if (icon) icon.className = 'fa-solid fa-pen text-white';
-                } else {
-                    topPenBtn.className = 'top-tool-btn flex items-center gap-1.5 px-2.5 py-1.5 text-slate-700 hover:text-blue-600 hover:bg-white rounded-lg text-xs font-semibold transition';
-                    const icon = topPenBtn.querySelector('i');
-                    if (icon) icon.className = 'fa-solid fa-pen text-blue-500';
-                }
-            }
-            if (topEraserBtn) {
-                if (tool === 'eraser') {
-                    topEraserBtn.className = 'top-tool-btn flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 text-white rounded-lg text-xs font-semibold shadow-sm transition';
-                    const icon = topEraserBtn.querySelector('i');
-                    if (icon) icon.className = 'fa-solid fa-eraser text-white';
-                } else {
-                    topEraserBtn.className = 'top-tool-btn flex items-center gap-1.5 px-2.5 py-1.5 text-slate-700 hover:text-rose-600 hover:bg-white rounded-lg text-xs font-semibold transition';
-                    const icon = topEraserBtn.querySelector('i');
-                    if (icon) icon.className = 'fa-solid fa-eraser text-rose-500';
-                }
-            }
 
             // Update Cursor & Status Badge
             const badge = document.getElementById('mode-status-text');
@@ -9867,8 +9829,12 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             const rRole = urlParams.get('role');
             const rUser = urlParams.get('user');
 
-            if (rId) currentRoomId = rId.trim();
-            else currentRoomId = 'phong-toan-hoc';
+            if (!rId || !rId.trim()) {
+                // Trừ khi có link mới vào hẳn 1 padlet của link đó thôi: Nếu không có link room cụ thể, trở về màn hình Dashboard index.html
+                window.location.replace('index.html');
+                return;
+            }
+            currentRoomId = rId.trim();
 
             // Stored or default user name (sync with Google user)
             const storedName = localStorage.getItem('padlet_user_name');
@@ -11480,6 +11446,12 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             }
 
             if (!isInitial) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasRoomLink = urlParams.has('room') && urlParams.get('room').trim() !== '';
+                if (!hasRoomLink) {
+                    window.location.href = 'index.html';
+                    return;
+                }
                 showToast(isGuest ? `Chào mừng ${user.name} vào bảng với tư cách Khách!` : `Đã đăng nhập thành công tài khoản Google: ${user.name}`);
             }
         }

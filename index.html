@@ -11,6 +11,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Identity Services (GIS) for Google Login -->
+    <script src="/env.js"></script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         body {
@@ -81,6 +82,13 @@
             </button>
 
             <!-- User Profile Avatar / Sign In Button -->
+            <!-- Login Button (shown when logged out) -->
+            <button onclick="showGoogleAuthGate()" id="btn-login-trigger" class="hidden items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full text-xs font-bold shadow-md shadow-blue-500/20 transition active:scale-95">
+                <i class="fa-brands fa-google text-xs"></i>
+                <span>Đăng nhập</span>
+            </button>
+
+            <!-- User Profile Avatar / Sign In Button (shown when logged in) -->
             <div id="user-profile-widget" class="relative">
                 <button onclick="toggleUserDropdown()" id="btn-user-avatar" class="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-slate-200 transition">
                     <div id="user-avatar-container" class="w-9 h-9 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow-xs overflow-hidden">
@@ -484,33 +492,265 @@
             try {
                 const stored = localStorage.getItem('mathboard_user') || localStorage.getItem('padlet_google_user');
                 if (stored) currentUser = JSON.parse(stored);
-            } catch (e) {}
-
-            if (!currentUser) {
-                currentUser = {
-                    name: 'Thầy Nguyễn (GV)',
-                    email: 'giaovien@gmail.com',
-                    sub: 'u_gv'
-                };
+                else currentUser = null;
+            } catch (e) {
+                currentUser = null;
             }
             updateUserUI();
+            if (!currentUser) {
+                showGoogleAuthGate();
+            }
         }
 
         function updateUserUI() {
+            const btnLogin = document.getElementById('btn-login-trigger');
+            const widget = document.getElementById('user-profile-widget');
             const initialEl = document.getElementById('user-avatar-initial');
             const nameEl = document.getElementById('dropdown-user-name');
             const emailEl = document.getElementById('dropdown-user-email');
             const dropAvatar = document.getElementById('dropdown-avatar');
 
             if (currentUser && currentUser.name) {
+                if (btnLogin) {
+                    btnLogin.classList.add('hidden');
+                    btnLogin.classList.remove('flex');
+                }
+                if (widget) widget.classList.remove('hidden');
+
                 const parts = currentUser.name.trim().split(' ');
                 const initials = parts.length > 1 ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase() : parts[0].substring(0, 2).toUpperCase();
                 if (initialEl) initialEl.textContent = initials;
                 if (dropAvatar) dropAvatar.textContent = initials;
                 if (nameEl) nameEl.textContent = currentUser.name;
                 if (emailEl) emailEl.textContent = currentUser.email || 'Google Account';
+            } else {
+                if (btnLogin) {
+                    btnLogin.classList.remove('hidden');
+                    btnLogin.classList.add('flex');
+                }
+                if (widget) widget.classList.add('hidden');
             }
         }
+        // ================= GOOGLE AUTHENTICATION & LOGIN GATE =================
+        function getGoogleClientId() {
+            if (typeof window.__ENV__ !== 'undefined' && window.__ENV__.GOOGLE_CLIENT_ID) {
+                return window.__ENV__.GOOGLE_CLIENT_ID.trim();
+            }
+            const stored = localStorage.getItem('padlet_google_client_id');
+            if (stored && stored.trim()) return stored.trim();
+            return '472097746430-8d4g1f0h44h7t23u44u6lcf20o2d26f6.apps.googleusercontent.com';
+        }
+
+        function isGoogleClientIdValid(cid) {
+            return Boolean(cid && cid.includes('.apps.googleusercontent.com') && !cid.startsWith('YOUR_'));
+        }
+
+        function isValidGoogleEmail(email, isGoogleOauth = false) {
+            if (!email) return false;
+            const em = email.trim().toLowerCase();
+            if (isGoogleOauth) return true;
+            if (em.endsWith('@gmail.com') || em.endsWith('@google.com')) return true;
+            if (em.endsWith('.edu') || em.endsWith('.edu.vn') || em.endsWith('.ac.vn')) return true;
+            return true;
+        }
+
+        function showGoogleAuthGate() {
+            const gate = document.getElementById('google-auth-gate');
+            if (gate) {
+                gate.classList.remove('hidden');
+                gate.style.display = 'flex';
+                gate.style.pointerEvents = 'auto';
+            }
+            initGoogleIdentityServices();
+        }
+
+        function hideGoogleAuthGate() {
+            const gate = document.getElementById('google-auth-gate');
+            if (gate) {
+                gate.classList.add('hidden');
+                gate.style.display = 'none';
+                gate.style.pointerEvents = 'none';
+            }
+        }
+
+        function showGoogleAuthError(msg) {
+            const banner = document.getElementById('google-auth-error-msg');
+            const text = document.getElementById('google-auth-error-text');
+            if (banner && text) {
+                text.textContent = msg;
+                banner.classList.remove('hidden');
+            }
+            showToast('⚠️ ' + msg);
+        }
+
+        function initGoogleIdentityServices() {
+            const clientId = getGoogleClientId();
+            const btnContainer = document.getElementById('google-gis-btn-container');
+            const fallbackBtn = document.getElementById('btn-custom-google-signin');
+
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                try {
+                    window.google.accounts.id.initialize({
+                        client_id: clientId,
+                        callback: handleGoogleCredentialResponse,
+                        auto_select: false,
+                        cancel_on_tap_outside: true
+                    });
+
+                    if (btnContainer) {
+                        btnContainer.innerHTML = '';
+                        btnContainer.classList.remove('hidden');
+                        window.google.accounts.id.renderButton(btnContainer, {
+                            type: 'standard',
+                            theme: 'outline',
+                            size: 'large',
+                            text: 'signin_with',
+                            shape: 'pill',
+                            logo_alignment: 'left',
+                            width: 320
+                        });
+                    }
+                    if (fallbackBtn) fallbackBtn.classList.add('hidden');
+                } catch (e) {
+                    console.warn('[GIS] Render fallback:', e);
+                    if (fallbackBtn) fallbackBtn.classList.remove('hidden');
+                }
+            } else {
+                if (fallbackBtn) fallbackBtn.classList.remove('hidden');
+            }
+        }
+
+        function handleGoogleCredentialResponse(response) {
+            try {
+                const base64Url = response.credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                const payload = JSON.parse(jsonPayload);
+
+                if (!payload || !payload.email) {
+                    showGoogleAuthError('Không tìm thấy thông tin email từ Google. Vui lòng thử lại!');
+                    return;
+                }
+
+                const googleUser = {
+                    sub: payload.sub || ('gg_' + Math.abs(hashCode(payload.email))),
+                    name: payload.name || payload.email.split('@')[0],
+                    email: payload.email.toLowerCase(),
+                    picture: payload.picture || '',
+                    email_verified: Boolean(payload.email_verified),
+                    hd: payload.hd || null,
+                    loginTime: Date.now(),
+                    provider: 'google'
+                };
+
+                applyGoogleUser(googleUser);
+            } catch (err) {
+                console.error('[Google Auth] JWT decode failed:', err);
+                showGoogleAuthError('Không thể xử lý phản hồi từ Google. Vui lòng thử lại!');
+            }
+        }
+
+        function applyGoogleUser(user) {
+            currentUser = user;
+            try {
+                localStorage.setItem('mathboard_user', JSON.stringify(user));
+                localStorage.setItem('padlet_user_name', user.name);
+                if (user.provider === 'google') {
+                    localStorage.setItem('padlet_google_user', JSON.stringify(user));
+                }
+            } catch (e) {}
+
+            updateUserUI();
+            hideGoogleAuthGate();
+            showToast(`Chào mừng ${user.name} đến với MathBoard!`);
+        }
+
+        function quickSignInGoogle(presetEmail, presetName) {
+            applyGoogleUser({
+                sub: 'gg_' + Math.abs(hashCode(presetEmail)),
+                name: presetName,
+                email: presetEmail.toLowerCase(),
+                picture: '',
+                email_verified: true,
+                loginTime: Date.now(),
+                provider: 'google'
+            });
+        }
+
+        function loginAsGuest(customName = null) {
+            const input = document.getElementById('guest-name-input');
+            let name = (customName || (input ? input.value.trim() : '')).trim();
+            if (!name) name = 'Học sinh ' + Math.floor(1000 + Math.random() * 9000);
+            applyGoogleUser({
+                sub: 'guest_' + Date.now(),
+                name: name,
+                email: 'hocsinh@mathboard.local',
+                picture: '',
+                isGuest: true,
+                provider: 'guest',
+                loginTime: Date.now()
+            });
+        }
+
+        function triggerGoogleSignIn() {
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                window.google.accounts.id.prompt();
+            } else {
+                toggleManualGoogleInput();
+            }
+        }
+
+        function toggleManualGoogleInput() {
+            const c = document.getElementById('manual-google-email-container');
+            if (c) c.classList.toggle('hidden');
+        }
+
+        function validateGoogleEmailInputRealtime() {
+            const input = document.getElementById('google-auth-email-input');
+            const feedback = document.getElementById('google-auth-live-feedback');
+            const errorMsg = document.getElementById('google-auth-error-msg');
+            if (!input || !feedback) return;
+            if (errorMsg) errorMsg.classList.add('hidden');
+            const val = input.value.trim().toLowerCase();
+            if (!val) {
+                feedback.innerHTML = '<span class="text-slate-400 text-xs">Vui lòng nhập email Google (@gmail.com)</span>';
+                return;
+            }
+            feedback.innerHTML = '<span class="text-emerald-600 font-semibold text-xs flex items-center gap-1"><i class="fa-solid fa-circle-check text-emerald-500"></i> Hợp lệ: Tài khoản Google</span>';
+        }
+
+        function submitInteractiveGoogleSignIn() {
+            const input = document.getElementById('google-auth-email-input');
+            if (!input) return;
+            const val = input.value.trim().toLowerCase();
+            if (!val || !val.includes('@')) {
+                showGoogleAuthError('Vui lòng nhập địa chỉ email hợp lệ!');
+                return;
+            }
+            quickSignInGoogle(val, val.split('@')[0]);
+        }
+
+        function openGoogleConfigModal() {
+            const currentCid = getGoogleClientId();
+            const newCid = prompt('Nhập Google OAuth 2.0 Client ID (dạng xxxxx.apps.googleusercontent.com):', currentCid);
+            if (newCid && newCid.trim()) {
+                localStorage.setItem('padlet_google_client_id', newCid.trim());
+                showToast('Đã lưu Google Client ID');
+                initGoogleIdentityServices();
+            }
+        }
+
+        function hashCode(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return hash;
+        }
+    
 
         // Connect to WebSocket Server to fetch real-time rooms
         function fetchRoomsFromApi() {
@@ -1132,9 +1372,11 @@
         function handleLogout() {
             localStorage.removeItem('mathboard_user');
             localStorage.removeItem('padlet_google_user');
-            currentUser = { name: 'Khách', email: 'guest@mathboard.local', sub: 'u_guest' };
+            localStorage.removeItem('padlet_user_name');
+            currentUser = null;
             updateUserUI();
             showToast('Đã đăng xuất tài khoản');
+            showGoogleAuthGate();
         }
 
         function toggleSideMenu() {
