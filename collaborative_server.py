@@ -32,11 +32,35 @@ def init_db():
             room_id TEXT PRIMARY KEY,
             name TEXT,
             host_id TEXT,
+            owner_email TEXT,
+            owner_name TEXT,
+            owner_picture TEXT,
+            is_public INTEGER DEFAULT 1,
+            allowed_emails TEXT DEFAULT '',
             is_locked INTEGER DEFAULT 0,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    # Run safe migrations for existing SQLite databases
+    cur.execute("PRAGMA table_info(rooms)")
+    existing_cols = {col[1] for col in cur.fetchall()}
+    for col_name, col_type in [
+        ('owner_email', 'TEXT'),
+        ('owner_name', 'TEXT'),
+        ('owner_picture', 'TEXT'),
+        ('is_public', 'INTEGER DEFAULT 1'),
+        ('allowed_emails', "TEXT DEFAULT ''")
+    ]:
+        if col_name not in existing_cols:
+            try:
+                cur.execute(f"ALTER TABLE rooms ADD COLUMN {col_name} {col_type}")
+                print(f"[DB Migration] Added column {col_name} to rooms")
+            except Exception as e:
+                print(f"[DB Migration] Column {col_name} check: {e}")
+
+    cur.execute('CREATE INDEX IF NOT EXISTS idx_rooms_owner_email ON rooms(owner_email)')
+
     cur.execute('''
         CREATE TABLE IF NOT EXISTS canvas_states (
             room_id TEXT PRIMARY KEY,
@@ -50,24 +74,32 @@ def init_db():
     conn.close()
     print(f"[DB] SQLite database initialized successfully at {DB_PATH}")
 
-def db_get_or_create_room(room_id, user_id=None, user_name=None, requested_role='editor'):
+def db_get_or_create_room(room_id, user_id=None, user_name=None, user_email=None, user_picture=None, requested_role='editor'):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
-    cur.execute('SELECT host_id, is_locked, name FROM rooms WHERE room_id = ?', (room_id,))
+    cur.execute('SELECT host_id, is_locked, name, owner_email, owner_name FROM rooms WHERE room_id = ?', (room_id,))
     row = cur.fetchone()
     
+    clean_email = user_email.strip().lower() if user_email else None
+
     if not row:
         actual_role = 'host'
         room_name = f"Padlet {room_id}"
-        host_id = user_id or f"u_host_{int(time.time())}"
-        cur.execute('INSERT INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, 0)',
-                    (room_id, room_name, host_id))
+        host_id = clean_email or user_id or f"u_host_{int(time.time())}"
+        owner_email = clean_email
+        owner_name = user_name or ''
+        owner_picture = user_picture or ''
+        cur.execute('''
+            INSERT INTO rooms (room_id, name, host_id, owner_email, owner_name, owner_picture, is_public, is_locked)
+            VALUES (?, ?, ?, ?, ?, ?, 1, 0)
+        ''', (room_id, room_name, host_id, owner_email, owner_name, owner_picture))
         empty_state = json.dumps({
             "strokes": [],
             "padletTexts": [],
             "cards": [],
             "geometryObjects": [],
             "jsxgraphBoards": [],
+            "boardHeight": 2000,
             "settings": {"panX": 40, "panY": 40, "zoom": 1}
         })
         cur.execute('''
@@ -78,8 +110,23 @@ def db_get_or_create_room(room_id, user_id=None, user_name=None, requested_role=
         conn.commit()
         is_locked = 0
     else:
-        host_id, is_locked, room_name = row
-        if user_id and user_id == host_id:
+        host_id, is_locked, room_name, owner_email, owner_name = row
+        
+        # If room had no owner_email set, bind to first creator with email
+        if not owner_email and clean_email:
+            cur.execute('UPDATE rooms SET owner_email = ?, owner_name = ? WHERE room_id = ?',
+                        (clean_email, user_name or '', room_id))
+            conn.commit()
+            owner_email = clean_email
+            owner_name = user_name or ''
+
+        is_owner = False
+        if clean_email and owner_email and clean_email == owner_email.lower():
+            is_owner = True
+        elif user_id and host_id and user_id == host_id:
+            is_owner = True
+
+        if is_owner:
             actual_role = 'host'
         elif is_locked and requested_role != 'host':
             actual_role = 'viewer'
@@ -87,7 +134,7 @@ def db_get_or_create_room(room_id, user_id=None, user_name=None, requested_role=
             actual_role = requested_role if requested_role in ('editor', 'viewer') else 'editor'
             
     conn.close()
-    return actual_role, bool(is_locked), (room_name or f"Padlet {room_id}"), host_id
+    return actual_role, bool(is_locked), (room_name or f"Padlet {room_id}"), host_id, owner_email, owner_name
 
 def db_get_canvas_state(room_id):
     conn = sqlite3.connect(DB_PATH)
@@ -109,14 +156,22 @@ def db_get_canvas_state(room_id):
         "settings": {"panX": 40, "panY": 40, "zoom": 1}
     }
 
-def db_save_canvas_state(room_id, state_dict, room_name=None):
+def db_save_canvas_state(room_id, state_dict, room_name=None, owner_email=None, owner_name=None, owner_picture=None):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+    clean_email = owner_email.strip().lower() if owner_email else None
+    
     cur.execute('''
-        INSERT INTO rooms (room_id, name, host_id, is_locked)
-        VALUES (?, ?, ?, 0)
-        ON CONFLICT(room_id) DO NOTHING
-    ''', (room_id, room_name or f"Padlet {room_id}", f"u_host_{int(time.time())}"))
+        INSERT INTO rooms (room_id, name, host_id, owner_email, owner_name, owner_picture, is_public, is_locked)
+        VALUES (?, ?, ?, ?, ?, ?, 1, 0)
+        ON CONFLICT(room_id) DO UPDATE SET
+            name = COALESCE(excluded.name, rooms.name),
+            owner_email = COALESCE(rooms.owner_email, excluded.owner_email),
+            owner_name = COALESCE(rooms.owner_name, excluded.owner_name),
+            updated_at = CURRENT_TIMESTAMP
+    ''', (room_id, room_name or f"Padlet {room_id}", clean_email or f"u_host_{int(time.time())}",
+          clean_email, owner_name or '', owner_picture or ''))
+    
     state_json = json.dumps(state_dict)
     cur.execute('''
         INSERT INTO canvas_states (room_id, version, state_json, updated_at)
@@ -141,18 +196,24 @@ def db_set_room_lock(room_id, is_locked):
     conn.commit()
     conn.close()
 
-def db_list_rooms():
+def db_list_rooms(owner_email=None):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+    if not owner_email:
+        conn.close()
+        return []
+
+    clean_email = owner_email.strip().lower()
     cur.execute('''
-        SELECT r.room_id, r.name, r.host_id, r.is_locked, r.created_at, r.updated_at, cs.state_json
+        SELECT r.room_id, r.name, r.host_id, r.is_locked, r.created_at, r.updated_at, cs.state_json, r.owner_email, r.owner_name
         FROM rooms r
         LEFT JOIN canvas_states cs ON r.room_id = cs.room_id
+        WHERE LOWER(r.owner_email) = ?
         ORDER BY r.updated_at DESC
-    ''')
+    ''', (clean_email,))
     rooms = []
     for row in cur.fetchall():
-        r_id, name, host_id, is_locked, created_at, updated_at, state_json = row
+        r_id, name, host_id, is_locked, created_at, updated_at, state_json, o_email, o_name = row
         strokes_cnt = 0
         cards_cnt = 0
         preview_shapes = []
@@ -169,6 +230,8 @@ def db_list_rooms():
             'roomId': r_id,
             'name': name or f"Padlet {r_id}",
             'hostId': host_id,
+            'ownerEmail': o_email,
+            'ownerName': o_name or 'Chủ phòng',
             'isLocked': bool(is_locked),
             'createdAt': created_at,
             'updatedAt': updated_at,
@@ -194,16 +257,19 @@ def db_delete_room(room_id):
     conn.commit()
     conn.close()
 
-def db_duplicate_room(src_id, target_id, new_name, host_id='u_host'):
+def db_duplicate_room(src_id, target_id, new_name, host_id='u_host', owner_email=None, owner_name=None):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
     cur.execute('SELECT state_json FROM canvas_states WHERE room_id = ?', (src_id,))
     row = cur.fetchone()
     state_json = row[0] if row else json.dumps({
-        "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "jsxgraphBoards": [], "settings": {"panX": 40, "panY": 40, "zoom": 1}
+        "strokes": [], "padletTexts": [], "cards": [], "geometryObjects": [], "jsxgraphBoards": [], "boardHeight": 2000, "settings": {"panX": 40, "panY": 40, "zoom": 1}
     })
-    cur.execute('INSERT INTO rooms (room_id, name, host_id, is_locked) VALUES (?, ?, ?, 0)',
-                (target_id, new_name, host_id))
+    clean_email = owner_email.strip().lower() if owner_email else None
+    cur.execute('''
+        INSERT INTO rooms (room_id, name, host_id, owner_email, owner_name, is_public, is_locked)
+        VALUES (?, ?, ?, ?, ?, 1, 0)
+    ''', (target_id, new_name, host_id, clean_email, owner_name or ''))
     cur.execute('INSERT INTO canvas_states (room_id, version, state_json) VALUES (?, 1, ?)',
                 (target_id, state_json))
     conn.commit()
@@ -347,6 +413,12 @@ def db_apply_canvas_delta(room_id, delta):
             state['cards'] = [c for c in state.get('cards', []) if c.get('id') != c_id]
             changed = True
 
+    elif action == 'board:resize_height':
+        new_h = delta.get('height')
+        if new_h:
+            state['boardHeight'] = int(new_h)
+            changed = True
+
     elif action == 'board:clear_all':
         state['strokes'] = []
         state['padletTexts'] = []
@@ -455,19 +527,27 @@ async def api_health(request):
 
 async def api_get_room(request):
     """
-    GET /api/room?id=<roomId>
+    GET /api/room?id=<roomId>&email=<email>
     Fast Hydration: returns the complete room state and metadata directly from SQLite.
-    Allows guests and hosts to immediately see the canvas in <100ms.
     """
-    room_id = request.query.get('id', 'default-room').strip()
-    actual_role, is_locked, room_name, host_id = db_get_or_create_room(room_id)
+    room_id = (request.query.get('id') or request.query.get('roomId') or 'default-room').strip()
+    user_email = (request.query.get('email') or request.query.get('userEmail') or '').strip().lower()
+    
+    actual_role, is_locked, room_name, host_id, owner_email, owner_name = db_get_or_create_room(
+        room_id, user_email=user_email if user_email else None
+    )
     canvas_state = db_get_canvas_state(room_id)
+    is_owner = bool(user_email and owner_email and user_email == owner_email.lower())
     
     return web.json_response({
         "status": "ok",
         "roomId": room_id,
         "name": room_name,
         "hostId": host_id,
+        "ownerEmail": owner_email,
+        "ownerName": owner_name,
+        "isOwner": is_owner,
+        "role": actual_role,
         "isLocked": is_locked,
         "state": canvas_state,
         "onlineUsers": get_room_users(room_id)
@@ -476,7 +556,7 @@ async def api_get_room(request):
 async def api_save_room(request):
     """
     POST /api/room
-    Body: { "roomId": ..., "state": {...}, "name": ... }
+    Body: { "roomId": ..., "state": {...}, "name": ..., "ownerEmail": ..., "ownerName": ... }
     Saves canvas snapshot to SQLite.
     """
     try:
@@ -490,7 +570,11 @@ async def api_save_room(request):
         
     state = data.get('state', {})
     room_name = data.get('name')
-    db_save_canvas_state(room_id, state, room_name)
+    owner_email = data.get('ownerEmail')
+    owner_name = data.get('ownerName')
+    owner_picture = data.get('ownerPicture')
+    
+    db_save_canvas_state(room_id, state, room_name, owner_email=owner_email, owner_name=owner_name, owner_picture=owner_picture)
     
     return web.json_response({
         "status": "ok",
@@ -500,10 +584,11 @@ async def api_save_room(request):
 
 async def api_list_rooms(request):
     """
-    GET /api/rooms
-    Returns list of all rooms for the Google Docs dashboard.
+    GET /api/rooms?email=<email>
+    Returns list of rooms owned by this user email for Google Docs dashboard.
     """
-    rooms = db_list_rooms()
+    email = request.query.get('email', '').strip().lower()
+    rooms = db_list_rooms(owner_email=email if email else None)
     return web.json_response({
         "status": "ok",
         "rooms": rooms
@@ -595,19 +680,28 @@ async def websocket_handler(request):
                     room_id = data.get('roomId', 'default-room')
                     user_id = data.get('userId', f"u_{int(time.time()*1000)}")
                     user_name = data.get('userName', f"User {user_id[-4:]}")
+                    user_email = (data.get('email') or data.get('userEmail') or '').strip().lower()
+                    user_avatar = data.get('avatar') or data.get('userPicture') or ''
                     requested_role = data.get('role', 'editor')
                     color = data.get('color', '#3b82f6')
 
                     current_room = room_id
-                    actual_role, is_locked, room_name, _ = db_get_or_create_room(room_id, user_id, user_name, requested_role)
+                    actual_role, is_locked, room_name, host_id, owner_email, owner_name = db_get_or_create_room(
+                        room_id, user_id=user_id, user_name=user_name, user_email=user_email, user_picture=user_avatar, requested_role=requested_role
+                    )
+
+                    is_owner = bool(user_email and owner_email and user_email == owner_email.lower())
+                    if is_owner:
+                        actual_role = 'host'
 
                     client_info = {
                         'userId': user_id,
                         'userName': user_name,
-                        'email': data.get('email', ''),
-                        'avatar': data.get('avatar', ''),
+                        'email': user_email,
+                        'avatar': user_avatar,
                         'role': actual_role,
-                        'color': color
+                        'color': color,
+                        'isOwner': is_owner
                     }
 
                     if room_id not in active_rooms:
@@ -622,6 +716,9 @@ async def websocket_handler(request):
                         'type': 'room:init',
                         'roomId': room_id,
                         'roomName': room_name,
+                        'ownerEmail': owner_email,
+                        'ownerName': owner_name,
+                        'isOwner': is_owner,
                         'role': actual_role,
                         'isLocked': is_locked,
                         'state': canvas_state,
@@ -737,7 +834,8 @@ async def websocket_handler(request):
 
                 # 9. Rooms list for Google Docs Dashboard
                 elif msg_type == 'rooms:list':
-                    rooms = db_list_rooms()
+                    req_email = data.get('email') or client_info.get('email')
+                    rooms = db_list_rooms(owner_email=req_email)
                     await ws.send_str(json.dumps({
                         'type': 'rooms:list_response',
                         'rooms': rooms

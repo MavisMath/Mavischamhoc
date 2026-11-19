@@ -151,6 +151,32 @@
             filter: drop-shadow(0 0 8px #ef4444);
         }
 
+        /* GOOGLE DOCS STYLE VERTICAL SCROLLBAR ON BOARD VIEWPORT */
+        #board-viewport {
+            overflow-y: auto !important;
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.6) rgba(241, 245, 249, 0.4);
+        }
+        #board-viewport::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        #board-viewport::-webkit-scrollbar-track {
+            background: rgba(241, 245, 249, 0.6);
+        }
+        #board-viewport::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.5);
+            border-radius: 5px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        #board-viewport::-webkit-scrollbar-thumb:hover {
+            background: rgba(100, 116, 139, 0.8);
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+
         /* Whiteboard Drawing Mode - Pure standard SVG Pen Cursor (100% Chromium compatible) */
         .cursor-pen,
         body.whiteboard-drawing-active,
@@ -439,8 +465,8 @@
     <!-- Main Workspace (Infinite Board Canvas + Drawing Layer + Cards Container) -->
     <div class="relative flex-1 w-full h-full overflow-hidden">
         
-        <!-- Canvas Panning Viewport Container -->
-        <div id="board-viewport" class="w-full h-full board-background relative overflow-hidden select-none cursor-grab active:cursor-grabbing">
+        <!-- Canvas Scrollable Viewport Container (Google Docs Style Vertical Scrollbar) -->
+        <div id="board-viewport" class="w-full h-full board-background relative overflow-y-auto overflow-x-auto select-none">
             
             <!-- Viewer Readonly Notification Banner -->
             <div id="viewer-readonly-banner" class="hidden absolute top-5 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 px-5 py-2.5 bg-slate-900/95 backdrop-blur-md text-white rounded-full shadow-2xl border border-slate-700 text-xs font-medium pointer-events-auto animate-bounce-subtle">
@@ -459,8 +485,8 @@
                 </button>
             </div>
 
-            <!-- Panning and Zooming Stage -->
-            <div id="board-stage" class="absolute origin-top-left transition-transform duration-75" style="transform: translate(40px, 40px) scale(1);">
+            <!-- Panning and Zooming Stage (2000px Initial Height, Dynamically Expands Downwards) -->
+            <div id="board-stage" class="absolute origin-top-left transition-transform duration-75" style="transform: translate(40px, 40px) scale(1); min-height: 2000px; min-width: 100%;">
                 
                 <!-- Collaborators Live Cursors Layer -->
                 <div id="collaborator-cursors-container" class="absolute left-0 top-0 pointer-events-none" style="z-index: 250;"></div>
@@ -468,17 +494,20 @@
                 <!-- Direct Text Elements Layer on Padlet Canvas -->
                 <div id="direct-texts-container" class="relative w-0 h-0" style="z-index: 210;"></div>
 
-                <!-- SVG Vector Freehand Drawing Layer: 1:1 stage pixel mapping, zero offset, overflow visible -->
-                <svg id="drawing-svg" class="drawing-layer absolute left-0 top-0" style="width: 50000px; height: 50000px; z-index: 300; overflow: visible; pointer-events: none;"></svg>
+                <!-- SVG Vector Freehand Drawing Layer: 1:1 stage pixel mapping, zero offset, dynamic height -->
+                <svg id="drawing-svg" class="drawing-layer absolute left-0 top-0" style="width: 100%; min-width: 3000px; height: 2000px; z-index: 300; overflow: visible; pointer-events: none;"></svg>
 
                 <!-- Dedicated Whiteboard Draw Surface: Positioned at 0, 0 covering stage to catch all clicks -->
-                <div id="whiteboard-draw-surface" class="absolute left-0 top-0" style="width: 50000px; height: 50000px; z-index: 295; display: none;"></div>
+                <div id="whiteboard-draw-surface" class="absolute left-0 top-0" style="width: 100%; min-width: 3000px; height: 2000px; z-index: 295; display: none;"></div>
 
                 <!-- JSXGraph Dynamic Whiteboard Boards Layer -->
                 <div id="jsxgraph-boards-container" class="relative w-0 h-0 z-22"></div>
 
                 <!-- Cards Container -->
                 <div id="cards-container" class="relative w-0 h-0 z-20"></div>
+
+                <!-- Dynamic Height Spacer (Ensures native scrollbar reflects 2000px+ height) -->
+                <div id="board-height-spacer" style="width: 1px; height: 2000px; pointer-events: none;"></div>
             </div>
         </div>
 
@@ -880,16 +909,16 @@
         </div>
     </div>
 
-    <!-- ================= AUTHENTICATION MODAL: GOOGLE & GUEST ================= -->
+    <!-- ================= AUTHENTICATION MODAL: GOOGLE OAUTH 2.0 ONLY ================= -->
     <div id="google-auth-gate" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none">
-        <div class="bg-white rounded-3xl max-w-lg w-full p-6 md:p-8 shadow-2xl border border-slate-100 text-center relative overflow-hidden animate-scale-up space-y-4 max-h-[92vh] overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl border border-slate-100 text-center relative overflow-hidden animate-scale-up space-y-5">
             <!-- Top brand decorative accent bar -->
             <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 via-amber-400 to-emerald-500"></div>
 
             <!-- Header -->
-            <div class="text-center space-y-1 pt-1">
-                <div class="w-14 h-14 mx-auto bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-center shadow-xs">
-                    <svg class="w-8 h-8" viewBox="0 0 24 24">
+            <div class="text-center space-y-2 pt-1">
+                <div class="w-16 h-16 mx-auto bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-center shadow-xs">
+                    <svg class="w-9 h-9" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
@@ -899,8 +928,8 @@
                 <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">
                     Đăng nhập Padlet MathBoard
                 </h2>
-                <p class="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
-                    Chọn phương thức tham gia bảng vẽ tương tác Toán học & hình học trực quan
+                <p class="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
+                    Vui lòng đăng nhập bằng tài khoản Google để tham gia bảng vẽ, xem nội dung và cộng tác trực tiếp.
                 </p>
             </div>
 
@@ -910,149 +939,31 @@
                 <span id="google-auth-error-text" class="font-medium leading-relaxed"></span>
             </div>
 
-            <!-- OPTION 1: GOOGLE SIGN-IN (FOR TEACHERS / HOSTS) -->
-            <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-3">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                        <i class="fa-brands fa-google text-blue-500"></i>
-                        <span>Giáo viên / Chủ phòng (Tài khoản Google):</span>
-                    </span>
-                    <span class="text-[10px] font-semibold text-blue-600 bg-blue-100/60 px-2 py-0.5 rounded-full">Lưu bài giảng & Host</span>
-                </div>
-
+            <!-- GOOGLE SIGN-IN BUTTON CONTAINER -->
+            <div class="py-2 space-y-3">
                 <!-- GIS Official Button Container -->
                 <div id="google-gis-btn-container" class="flex justify-center min-h-[44px]"></div>
 
-                <!-- Custom / Fallback Google Sign-In Button (Always visible & clickable) -->
+                <!-- Custom / Fallback Google Sign-In Button -->
                 <button 
                     id="btn-custom-google-signin" 
                     type="button"
                     onclick="triggerGoogleSignIn()" 
-                    class="w-full py-2.5 px-4 bg-white hover:bg-slate-100 border border-slate-300 rounded-xl text-xs font-bold text-slate-700 shadow-sm transition flex items-center justify-center gap-2.5 hover:border-blue-500 active:scale-98"
+                    class="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-slate-300 rounded-2xl text-xs font-bold text-slate-700 shadow-sm transition flex items-center justify-center gap-3 hover:border-blue-500 hover:shadow active:scale-98"
                 >
-                    <svg class="w-4 h-4" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                         <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
-                    <span>Đăng nhập bằng tài khoản Google</span>
-                </button>
-
-                <!-- Quick Google Demo Accounts -->
-                <div class="pt-1">
-                    <span class="text-[11px] text-slate-400 block mb-1.5 font-medium">Hoặc đăng nhập nhanh bằng tài khoản Google mẫu:</span>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="quickSignInGoogle('gv.toan.nguyen@gmail.com', 'Thầy Nguyễn (Toán Học)')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 text-[11px] text-slate-700 font-semibold flex items-center gap-1.5 transition">
-                            <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-[10px]">T</span>
-                            <span class="truncate">Thầy Nguyễn (GV)</span>
-                        </button>
-                        <button type="button" onclick="quickSignInGoogle('hocsinh.minhanh@gmail.com', 'Minh Anh (Học sinh)')" class="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-emerald-50 text-[11px] text-slate-700 font-semibold flex items-center gap-1.5 transition">
-                            <span class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-[10px]">M</span>
-                            <span class="truncate">Minh Anh (HS)</span>
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Collapsible Manual Google Email Input -->
-                <div class="pt-1">
-                    <button type="button" onclick="toggleManualGoogleInput()" class="text-[11px] text-blue-600 hover:underline font-medium flex items-center gap-1">
-                        <i class="fa-solid fa-keyboard text-[10px]"></i>
-                        <span>Nhập email Google thủ công (@gmail.com)</span>
-                        <i class="fa-solid fa-chevron-down text-[9px] ml-0.5"></i>
-                    </button>
-                    <div id="google-manual-email-box" class="hidden mt-2 pt-2 border-t border-slate-200 space-y-2">
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Email Google của bạn:</label>
-                            <input 
-                                id="google-auth-email-input" 
-                                type="email" 
-                                oninput="validateGoogleEmailInputRealtime()"
-                                onkeydown="if(event.key==='Enter') submitInteractiveGoogleSignIn()" 
-                                placeholder="ten_cua_ban@gmail.com" 
-                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-400 transition" 
-                            />
-                            <div id="google-auth-live-feedback" class="mt-1 min-h-[16px]">
-                                <span class="text-slate-400 text-[10px]">Chỉ chấp nhận đuôi @gmail.com hoặc Google Workspace</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] font-bold text-slate-700 mb-1">Họ tên hiển thị (tùy chọn):</label>
-                            <input 
-                                id="google-auth-name-input" 
-                                type="text" 
-                                onkeydown="if(event.key==='Enter') submitInteractiveGoogleSignIn()" 
-                                placeholder="Thầy Nguyễn Văn A" 
-                                class="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-400 transition" 
-                            />
-                        </div>
-                        <button 
-                            type="button"
-                            onclick="submitInteractiveGoogleSignIn()" 
-                            class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
-                        >
-                            <i class="fa-brands fa-google text-xs"></i>
-                            <span>Xác thực & Vào Bảng Trắng</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- DIVIDER -->
-            <div class="flex items-center gap-3 my-1">
-                <div class="h-px bg-slate-200 flex-1"></div>
-                <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">HOẶC</span>
-                <div class="h-px bg-slate-200 flex-1"></div>
-            </div>
-
-            <!-- OPTION 2: GUEST LOGIN (FOR STUDENTS / VIEWERS) -->
-            <div class="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-left space-y-3">
-                <div class="flex items-center justify-between">
-                    <span class="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                        <i class="fa-solid fa-user-graduate text-emerald-600"></i>
-                        <span>Dành cho Học sinh & Khách (Không cần tài khoản):</span>
-                    </span>
-                    <span class="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">Vào ngay 1-Click</span>
-                </div>
-
-                <div class="space-y-2">
-                    <div>
-                        <label class="block text-[11px] font-semibold text-slate-700 mb-1">
-                            Tên hiển thị của bạn trên bảng:
-                        </label>
-                        <div class="relative">
-                            <i class="fa-solid fa-user absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-                            <input 
-                                id="guest-name-input" 
-                                type="text" 
-                                placeholder="Nhập tên của bạn (VD: Minh Anh, Học sinh...)" 
-                                onkeydown="if(event.key==='Enter') loginAsGuest()"
-                                class="w-full pl-9 pr-3 py-2 bg-white border border-emerald-300 rounded-xl text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-400 transition font-medium" 
-                            />
-                        </div>
-                    </div>
-
-                    <button 
-                        type="button"
-                        onclick="loginAsGuest()" 
-                        class="w-full py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2 active:scale-98"
-                    >
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
-                        <span>Vào Bảng Trắng ngay (Tư cách Khách)</span>
-                    </button>
-                    <p class="text-[10px] text-slate-500 text-center">
-                        Khách có thể theo dõi bài giảng và vẽ tương tác theo quyền phòng mà không cần tài khoản Google.
-                    </p>
-                </div>
-            </div>
-
-            <!-- Footer & Advanced Google Client ID Config -->
-            <div class="pt-1 text-center">
-                <button type="button" onclick="openGoogleConfigModal()" class="text-[11px] text-slate-400 hover:text-blue-600 transition flex items-center justify-center gap-1 mx-auto">
-                    <i class="fa-solid fa-gear text-[10px]"></i>
-                    <span>Tùy chỉnh Google OAuth 2.0 Client ID</span>
+                    <span>Đăng nhập với Google</span>
                 </button>
             </div>
+
+            <p class="text-[11px] text-slate-400 text-center leading-normal">
+                Bắt buộc đăng nhập Google OAuth 2.0 để bảo mật quyền sở hữu bảng và dữ liệu phòng học.
+            </p>
         </div>
     </div>
 
@@ -1087,6 +998,55 @@
         let currentGoogleUser = null;
         let currentUserEmail = '';
         let currentUserAvatar = '';
+
+        // ================= INFINITE CANVAS VERTICAL EXPANSION (GOOGLE DOCS STYLE) =================
+        let boardHeight = 2000; // Khởi tạo 2000px chuẩn
+
+        function applyBoardHeightDOM() {
+            const stage = document.getElementById('board-stage');
+            const svg = document.getElementById('drawing-svg');
+            const surface = document.getElementById('whiteboard-draw-surface');
+            const spacer = document.getElementById('board-height-spacer');
+            
+            if (stage) stage.style.minHeight = boardHeight + 'px';
+            if (svg) svg.style.height = boardHeight + 'px';
+            if (surface) surface.style.height = boardHeight + 'px';
+            if (spacer) spacer.style.height = boardHeight + 'px';
+        }
+
+        function setBoardHeight(newHeight, syncRemote = true) {
+            newHeight = Math.max(2000, Math.round(newHeight));
+            if (newHeight <= boardHeight) return;
+            boardHeight = newHeight;
+            applyBoardHeightDOM();
+            if (syncRemote && typeof broadcastCanvasDelta === 'function') {
+                broadcastCanvasDelta({ action: 'board:resize_height', height: boardHeight });
+                if (typeof performCanvasAutoSave === 'function') {
+                    performCanvasAutoSave();
+                }
+            }
+        }
+
+        function checkAndExpandBoardHeight(targetY = null) {
+            let neededHeight = boardHeight;
+            
+            // 1. Kiểm tra khi vẽ nét hoặc đặt thẻ bài / chữ gần mép dưới (cách đáy < 300px)
+            if (targetY !== null && targetY + 300 > boardHeight) {
+                neededHeight = Math.max(boardHeight + 1000, Math.round(targetY + 1000));
+            }
+            
+            // 2. Kiểm tra khi người dùng cuộn thanh cuộn xuống cách đáy dưới < 300px
+            if (boardViewport) {
+                const scrollBottom = boardViewport.scrollTop + boardViewport.clientHeight;
+                if (scrollBottom >= boardHeight - 300) {
+                    neededHeight = Math.max(neededHeight, boardHeight + 1000);
+                }
+            }
+
+            if (neededHeight > boardHeight) {
+                setBoardHeight(neededHeight, true);
+            }
+        }
 
         // Viewport Pan/Zoom state
         let panX = 40;
@@ -1475,35 +1435,46 @@
         // ================= PAN & ZOOM LOGIC =================
         function initBoardInteractions() {
             boardViewport.addEventListener('mousedown', (e) => {
-                if (currentTool !== 'hand') return; // Hand tool handles board panning
+                if (currentTool !== 'hand') return;
                 if (e.target.closest('.padlet-card') || e.target.closest('.padlet-direct-text') || e.target.closest('button') || e.target.closest('textarea') || e.target.closest('input') || e.target.closest('.interactive-geom-group') || e.target.closest('.geom-vertex-handle') || e.target.closest('.geom-drag-bar') || e.target.closest('foreignObject')) return;
                 
                 isPanning = true;
-                startPanX = e.clientX - panX;
-                startPanY = e.clientY - panY;
+                startPanX = e.clientX;
+                startPanY = e.clientY;
+                startScrollLeft = boardViewport.scrollLeft;
+                startScrollTop = boardViewport.scrollTop;
             });
 
             window.addEventListener('mousemove', (e) => {
                 if (!isPanning) return;
-                panX = e.clientX - startPanX;
-                panY = e.clientY - startPanY;
-                updateTransform();
+                const dx = e.clientX - startPanX;
+                const dy = e.clientY - startPanY;
+                boardViewport.scrollLeft = startScrollLeft - dx;
+                boardViewport.scrollTop = startScrollTop - dy;
             });
 
             window.addEventListener('mouseup', () => {
                 isPanning = false;
             });
 
-            // Wheel zoom
+            // Wheel zoom (Ctrl + Wheel) vs Native Vertical Scroll (Normal Wheel)
             boardViewport.addEventListener('wheel', (e) => {
                 if (e.target.closest('canvas') && e.target.closest('.card-3d-box')) {
-                    // Let OrbitControls handle zoom inside 3D viewer
                     return;
                 }
-                e.preventDefault();
-                const zoomFactor = e.deltaY < 0 ? 0.08 : -0.08;
-                zoomCanvas(zoomFactor);
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    const zoomFactor = e.deltaY < 0 ? 0.08 : -0.08;
+                    zoomCanvas(zoomFactor);
+                }
+                // Normal wheel scrolls natively; check for infinite expansion
+                checkAndExpandBoardHeight();
             }, { passive: false });
+
+            // Listen for native vertical scroll to trigger infinite expansion near bottom
+            boardViewport.addEventListener('scroll', () => {
+                checkAndExpandBoardHeight();
+            }, { passive: true });
 
             // Double Click anywhere on canvas to write text directly!
             boardViewport.addEventListener('dblclick', (e) => {
@@ -1744,9 +1715,11 @@
             const rect = boardViewport.getBoundingClientRect();
             const clientX = e.clientX !== undefined ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
             const clientY = e.clientY !== undefined ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            const sLeft = boardViewport ? boardViewport.scrollLeft : 0;
+            const sTop = boardViewport ? boardViewport.scrollTop : 0;
             return {
-                x: (clientX - rect.left - panX) / zoom,
-                y: (clientY - rect.top - panY) / zoom
+                x: (clientX - rect.left + sLeft - panX) / zoom,
+                y: (clientY - rect.top + sTop - panY) / zoom
             };
         }
 
@@ -2114,6 +2087,9 @@
                 if (Math.hypot(pt.x - lastPt.x, pt.y - lastPt.y) > 1.2) {
                     activeStroke.points.push(pt);
                     updateActiveStrokeElement(pt);
+                    if (pt.y >= boardHeight - 300) {
+                        checkAndExpandBoardHeight(pt.y);
+                    }
                 }
             } else {
                 if (activeStroke.points.length === 1) {
@@ -10095,7 +10071,9 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                         userId: currentUserId,
                         userName: currentUserName,
                         email: currentUserEmail,
+                        userEmail: currentUserEmail,
                         avatar: currentUserAvatar,
+                        userPicture: currentUserAvatar,
                         provider: 'google',
                         role: currentCollabRole,
                         color: currentUserColor
@@ -10168,7 +10146,10 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     currentCollabRole = msg.role || currentCollabRole;
                     isRoomLocked = Boolean(msg.isLocked);
                     onlineUsersList = msg.users || [];
-                    updateRoleUI(currentCollabRole, isRoomLocked);
+                    updateRoleUI(currentCollabRole, isRoomLocked, msg.isOwner, msg.ownerName);
+                    if (msg.state && msg.state.boardHeight) {
+                        setBoardHeight(msg.state.boardHeight, false);
+                    }
                     updateOnlineUsersUI(onlineUsersList);
 
                     // Update Padlet Title from server or localStorage
@@ -10325,6 +10306,10 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                             }
                         }
                     }
+                    break;
+
+                case 'board:resize_height':
+                    if (delta.height) setBoardHeight(delta.height, false);
                     break;
 
                 case 'card:delete':
@@ -10673,6 +10658,7 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                         isLocked: inst.isLocked || false
                     };
                 }),
+                boardHeight: boardHeight,
                 settings: {
                     panX: panX,
                     panY: panY,
@@ -10730,6 +10716,9 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     });
                 }
 
+                if (state.boardHeight) {
+                    setBoardHeight(state.boardHeight, false);
+                }
                 // 5. Restore Viewport position if provided
                 if (state.settings) {
                     if (state.settings.panX !== undefined) panX = state.settings.panX;
@@ -11051,23 +11040,24 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
         }
 
         // ================= ROLE & UI MANAGEMENT =================
-        function updateRoleUI(role, isLocked) {
+        function updateRoleUI(role, isLocked, isOwner = null, ownerName = null) {
             currentCollabRole = role;
             const badge = document.getElementById('collab-role-badge');
             const toolbar = document.getElementById('whiteboard-toolbar');
             const viewerBanner = document.getElementById('viewer-readonly-banner');
             const chatSendBtn = document.getElementById('btn-send-chat');
 
+            const owner = (isOwner === true) || (role === 'host');
             if (badge) {
-                if (role === 'host') {
+                if (owner) {
                     badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300';
-                    badge.innerHTML = '👑 Host (Chủ phòng)';
+                    badge.innerHTML = '👑 Chủ phòng';
                 } else if (role === 'editor') {
-                    badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
-                    badge.innerHTML = '✏️ Editor (Được vẽ)';
+                    badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-300';
+                    badge.innerHTML = '✏️ Cộng tác';
                 } else {
                     badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 border border-slate-300';
-                    badge.innerHTML = '👁️ Viewer (Chỉ xem)';
+                    badge.innerHTML = '👁️ Chỉ xem';
                 }
             }
 
@@ -11330,7 +11320,7 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 const stored = localStorage.getItem('mathboard_user') || localStorage.getItem('padlet_google_user');
                 if (stored) {
                     const user = JSON.parse(stored);
-                    if (user && (isValidGoogleEmail(user.email) || user.provider === 'guest' || user.isGuest)) {
+                    if (user && user.email && user.provider === 'google') {
                         applyGoogleUser(user, true);
                         return true;
                     }
@@ -11339,15 +11329,7 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 console.warn('[Google Auth] Session error:', e);
             }
 
-            // Tự động cho phép nếu vào bằng link chia sẻ Viewer hoặc Guest
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('role') === 'viewer' || urlParams.get('guest') === 'true') {
-                const guestName = urlParams.get('user') || 'Học sinh dự thính';
-                loginAsGuest(guestName);
-                return true;
-            }
-
-            // Hiển thị Modal đăng nhập chọn Google hoặc Khách
+            // Bắt buộc tất cả người dùng (kể cả vào qua link chia sẻ) phải đăng nhập Google OAuth 2.0
             showGoogleAuthGate();
             return false;
         }
