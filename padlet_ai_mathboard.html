@@ -320,12 +320,12 @@
         <!-- LEFT: Brand, Title, Auto-Save Status -->
         <div class="flex items-center gap-3 min-w-0">
             <!-- Home / Back to Dashboard Button -->
-            <a href="index.html" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition shadow-2xs border border-slate-200/80 group shrink-0" title="Quay lại Trang chủ Padlet">
+            <a id="btn-back-to-home" href="index.html" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition shadow-2xs border border-slate-200/80 group shrink-0" title="Quay lại Trang chủ Padlet">
                 <i class="fa-solid fa-arrow-left text-sm group-hover:-translate-x-0.5 transition"></i>
             </a>
 
             <!-- Logo -->
-            <a href="index.html" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-pink-500/20 font-bold text-base select-none shrink-0" title="MathBoard">
+            <a id="btn-logo-home" href="index.html" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-pink-500/20 font-bold text-base select-none shrink-0" title="MathBoard">
                 <i class="fa-solid fa-shapes"></i>
             </a>
 
@@ -340,6 +340,16 @@
                 <span id="collab-save-status" class="flex items-center gap-1 text-[11px] text-emerald-600 font-medium select-none shrink-0" title="Tự động lưu vào đám mây">
                     <i class="fa-solid fa-cloud-arrow-up"></i><span class="hidden md:inline">Đã lưu</span>
                 </span>
+
+                <!-- Guest Mode Notice Banner on Header (Incognito 1-time mode) -->
+                <div id="guest-mode-banner" class="hidden items-center gap-1.5 px-3 py-1 bg-amber-500/10 border border-amber-300 text-amber-900 rounded-full text-[11px] font-semibold shrink-0 shadow-2xs animate-pulse">
+                    <i class="fa-solid fa-user-secret text-amber-600"></i>
+                    <span class="hidden md:inline">Đang ở chế độ Khách (Bảng sẽ tự xóa khi đóng tab) - </span>
+                    <span class="md:hidden">Chế độ Khách - </span>
+                    <button type="button" onclick="triggerGoogleSignInToSave()" class="text-blue-600 hover:text-blue-800 underline font-bold transition cursor-pointer">
+                        Đăng nhập Google để lưu
+                    </button>
+                </div>
                 
                 <!-- Hidden room span for JS compatibility -->
                 <span id="collab-room-id" class="hidden"></span>
@@ -909,14 +919,74 @@
         </div>
     </div>
 
-    <!-- ================= AUTHENTICATION MODAL: GOOGLE OAUTH 2.0 ONLY ================= -->
+    <!-- ================= AUTHENTICATION MODAL: GOOGLE OAUTH 2.0 & CHẾ ĐỘ KHÁCH ================= -->
     <div id="google-auth-gate" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl border border-slate-100 text-center relative overflow-hidden animate-scale-up space-y-5">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl border border-slate-100 text-center relative overflow-hidden animate-scale-up space-y-4">
             <!-- Top brand decorative accent bar -->
             <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-blue-500 via-indigo-500 via-amber-400 to-emerald-500"></div>
 
-            <!-- Header -->
-            <div class="text-center space-y-2 pt-1">
+            <!-- ================= VIEW 1: GUEST FIRST (Tự động ưu tiên khi vào bằng link ?room=padlet-xxx) ================= -->
+            <div id="auth-guest-view" class="hidden space-y-4 pt-1">
+                <div class="w-16 h-16 mx-auto bg-emerald-50 border border-emerald-200/80 rounded-2xl flex items-center justify-center shadow-xs">
+                    <i class="fa-solid fa-graduation-cap text-2xl text-emerald-600"></i>
+                </div>
+                <div class="space-y-1">
+                    <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">
+                        Tham gia phòng học MathBoard
+                    </h2>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Bạn đang tham gia phòng: <span id="guest-room-display-id" class="font-bold text-slate-800 font-mono bg-slate-100 px-2 py-0.5 rounded-md"></span>
+                    </p>
+                </div>
+
+                <!-- Input Name Form -->
+                <div class="space-y-3 pt-2 text-left">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">Tên hiển thị của bạn trên bảng:</label>
+                        <div class="relative">
+                            <input 
+                                id="guest-name-input" 
+                                type="text" 
+                                placeholder="Nhập tên của bạn (VD: Minh Anh, Học sinh...)" 
+                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition outline-none"
+                                onkeydown="if(event.key === 'Enter') loginAsGuest();"
+                            >
+                            <i class="fa-solid fa-user absolute left-3.5 top-3.5 text-slate-400"></i>
+                        </div>
+                    </div>
+
+                    <button 
+                        id="btn-guest-enter" 
+                        type="button" 
+                        onclick="loginAsGuest()" 
+                        class="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white rounded-2xl text-sm font-bold shadow-md shadow-emerald-600/20 hover:shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                        <span>🚀 Vào phòng ngay (Tư cách Khách)</span>
+                    </button>
+                    <p class="text-[11px] text-slate-400 text-center leading-normal">
+                        Chế độ 1 lần: Tự động xóa danh tính khi bạn đóng tab trình duyệt.
+                    </p>
+                </div>
+
+                <div class="pt-2 border-t border-slate-100">
+                    <button 
+                        type="button" 
+                        onclick="toggleAuthModalMode('google')" 
+                        class="text-xs text-blue-600 hover:text-blue-800 font-bold inline-flex items-center gap-1.5 transition hover:underline cursor-pointer"
+                    >
+                        <svg class="w-3.5 h-3.5 shrink-0" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                        </svg>
+                        <span>Hoặc đăng nhập bằng Google (Dành cho Giáo viên / Host)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ================= VIEW 2: GOOGLE FIRST (Mặc định khi vào trực tiếp / không có ?room=) ================= -->
+            <div id="auth-google-view" class="space-y-4 pt-1">
                 <div class="w-16 h-16 mx-auto bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-center shadow-xs">
                     <svg class="w-9 h-9" viewBox="0 0 24 24">
                         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -925,48 +995,84 @@
                         <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
                 </div>
-                <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">
-                    Đăng nhập Padlet MathBoard
-                </h2>
-                <p class="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
-                    Vui lòng đăng nhập bằng tài khoản Google để tham gia bảng vẽ, xem nội dung và cộng tác trực tiếp.
-                </p>
+                <div class="space-y-1">
+                    <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">
+                        Đăng nhập Padlet MathBoard
+                    </h2>
+                    <p class="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
+                        Đăng nhập Google để lưu trữ danh sách bảng vĩnh viễn hoặc dùng Chế độ Khách 1 lần.
+                    </p>
+                </div>
+
+                <!-- Error Banner -->
+                <div id="google-auth-error-msg" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-start gap-2 text-left animate-shake">
+                    <i class="fa-solid fa-circle-exclamation text-rose-500 mt-0.5 shrink-0 text-sm"></i>
+                    <span id="google-auth-error-text" class="font-medium leading-relaxed"></span>
+                </div>
+
+                <!-- GOOGLE SIGN-IN BUTTON CONTAINER -->
+                <div class="py-1 space-y-2.5">
+                    <!-- GIS Official Button Container -->
+                    <div id="google-gis-btn-container" class="flex justify-center min-h-[44px]"></div>
+
+                    <!-- Custom / Fallback Google Sign-In Button (Direct synchronous popup trigger) -->
+                    <button 
+                        id="btn-custom-google-signin" 
+                        type="button"
+                        onclick="triggerGoogleSignIn()" 
+                        class="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-slate-300 rounded-2xl text-xs font-bold text-slate-700 shadow-sm transition flex items-center justify-center gap-3 hover:border-blue-500 hover:shadow active:scale-98 cursor-pointer"
+                    >
+                        <svg class="w-5 h-5" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                        </svg>
+                        <span>Đăng nhập với Google</span>
+                    </button>
+                </div>
+
+                <!-- Divider -->
+                <div class="relative flex py-1 items-center">
+                    <div class="grow border-t border-slate-200"></div>
+                    <span class="shrink mx-3 text-[10px] text-slate-400 font-bold tracking-widest uppercase">HOẶC</span>
+                    <div class="grow border-t border-slate-200"></div>
+                </div>
+
+                <!-- GUEST MODE BUTTON -->
+                <div class="space-y-1.5">
+                    <button 
+                        id="btn-guest-anonymous-mode" 
+                        type="button" 
+                        onclick="startEphemeralGuestSession()" 
+                        class="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 border border-slate-200/80 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2.5 cursor-pointer hover:border-slate-300"
+                    >
+                        <i class="fa-solid fa-user-secret text-slate-500 text-sm"></i>
+                        <span>Tiếp tục với Chế độ Khách (Dùng 1 lần / Không lưu tài khoản)</span>
+                    </button>
+                    <p class="text-[11px] text-slate-400 text-center leading-normal">
+                        Mở bảng trắng tạm thời, tự động xóa phiên khi đóng trình duyệt.
+                    </p>
+                </div>
             </div>
-
-            <!-- Error Banner -->
-            <div id="google-auth-error-msg" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-start gap-2 text-left animate-shake">
-                <i class="fa-solid fa-circle-exclamation text-rose-500 mt-0.5 shrink-0 text-sm"></i>
-                <span id="google-auth-error-text" class="font-medium leading-relaxed"></span>
-            </div>
-
-            <!-- GOOGLE SIGN-IN BUTTON CONTAINER -->
-            <div class="py-2 space-y-3">
-                <!-- GIS Official Button Container -->
-                <div id="google-gis-btn-container" class="flex justify-center min-h-[44px]"></div>
-
-                <!-- Custom / Fallback Google Sign-In Button -->
-                <button 
-                    id="btn-custom-google-signin" 
-                    type="button"
-                    onclick="triggerGoogleSignIn()" 
-                    class="w-full py-3 px-4 bg-white hover:bg-slate-50 border border-slate-300 rounded-2xl text-xs font-bold text-slate-700 shadow-sm transition flex items-center justify-center gap-3 hover:border-blue-500 hover:shadow active:scale-98"
-                >
-                    <svg class="w-5 h-5" viewBox="0 0 24 24">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                    </svg>
-                    <span>Đăng nhập với Google</span>
-                </button>
-            </div>
-
-            <p class="text-[11px] text-slate-400 text-center leading-normal">
-                Bắt buộc đăng nhập Google OAuth 2.0 để bảo mật quyền sở hữu bảng và dữ liệu phòng học.
-            </p>
         </div>
     </div>
-
+    <script>
+        (function() {
+            try {
+                var params = new URLSearchParams(window.location.search);
+                var room = params.get('room');
+                if (room && room.trim() !== '') {
+                    var gv = document.getElementById('auth-guest-view');
+                    var ggl = document.getElementById('auth-google-view');
+                    var rd = document.getElementById('guest-room-display-id');
+                    if (gv) gv.classList.remove('hidden');
+                    if (ggl) ggl.classList.add('hidden');
+                    if (rd) rd.textContent = room.trim();
+                }
+            } catch(e) {}
+        })();
+    </script>
     <!-- Application Script -->
     <script>
         // ================= GLOBAL APPLICATION STATE =================
@@ -1353,6 +1459,13 @@
             initKeyboardShortcuts();
         } catch (e) {
             console.warn('[MathBoard] Early init error:', e);
+        }
+
+        // Ensure early check of auth status without waiting for slow external CDN resources
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => { checkGoogleAuthStatus(); });
+        } else {
+            checkGoogleAuthStatus();
         }
 
         window.onload = function() {
@@ -10142,6 +10255,18 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             }
 
             switch (msg.type) {
+                case 'room:claimed':
+                    if (msg.roomId === currentRoomId) {
+                        currentCollabRole = 'host';
+                        updateRoleUI('host', isRoomLocked, true, msg.ownerName);
+                        const gBanner = document.getElementById('guest-mode-banner');
+                        if (gBanner) gBanner.classList.add('hidden');
+                        if (typeof showFloatingToast === 'function') {
+                            showFloatingToast('👑 Đã liên kết và lưu bảng vẽ vào tài khoản Google thành công!', 'success');
+                        }
+                    }
+                    break;
+
                 case 'room:init':
                     currentCollabRole = msg.role || currentCollabRole;
                     isRoomLocked = Boolean(msg.isLocked);
@@ -11315,8 +11440,45 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
         }
 
         // Kiểm tra phiên đăng nhập (Session Recovery) cho cả Google và Khách
+        // Google Identity Services OAuth 2.0 Token Client (For zero popup blocker issues)
+        let gisTokenClient = null;
+
+        function toggleAuthModalMode(mode, roomName = '') {
+            const guestView = document.getElementById('auth-guest-view');
+            const googleView = document.getElementById('auth-google-view');
+            const roomDisplay = document.getElementById('guest-room-display-id');
+
+            if (mode === 'guest') {
+                if (guestView) guestView.classList.remove('hidden');
+                if (googleView) googleView.classList.add('hidden');
+                if (roomDisplay) {
+                    const rId = roomName || (new URLSearchParams(window.location.search).get('room') || 'Phòng học');
+                    roomDisplay.textContent = rId;
+                }
+                const nameInp = document.getElementById('guest-name-input');
+                if (nameInp) setTimeout(() => nameInp.focus(), 120);
+            } else {
+                if (guestView) guestView.classList.add('hidden');
+                if (googleView) googleView.classList.remove('hidden');
+                if (typeof initGoogleIdentityServices === 'function') {
+                    initGoogleIdentityServices();
+                }
+            }
+        }
+
         function checkGoogleAuthStatus() {
             try {
+                // 1. Kiểm tra session Khách trong sessionStorage (Tự xóa khi đóng tab)
+                const guestStored = sessionStorage.getItem('mathboard_guest_user');
+                if (guestStored) {
+                    const gUser = JSON.parse(guestStored);
+                    if (gUser && (gUser.isGuest || gUser.provider === 'guest')) {
+                        applyGoogleUser(gUser, true);
+                        return true;
+                    }
+                }
+
+                // 2. Kiểm tra Google User trong localStorage (Lưu trữ vĩnh viễn)
                 const stored = localStorage.getItem('mathboard_user') || localStorage.getItem('padlet_google_user');
                 if (stored) {
                     const user = JSON.parse(stored);
@@ -11329,13 +11491,13 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 console.warn('[Google Auth] Session error:', e);
             }
 
-            // Bắt buộc tất cả người dùng (kể cả vào qua link chia sẻ) phải đăng nhập Google OAuth 2.0
+            // Chưa có phiên đăng nhập -> Hiển thị Modal đăng nhập linh hoạt
             showGoogleAuthGate();
             return false;
         }
 
         function showGoogleAuthGate() {
-            // Ngăn chặn vòng lặp đăng nhập (Login Loop): Nếu đã đăng nhập thành công thì không bao giờ mở lại
+            // Ngăn chặn vòng lặp đăng nhập nếu đã có session
             if (window.isAuthenticated && currentGoogleUser) {
                 hideGoogleAuthGate();
                 return;
@@ -11348,6 +11510,14 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             }
             const dropdown = document.getElementById('google-user-dropdown');
             if (dropdown) dropdown.classList.add('hidden');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            if (roomParam && roomParam.trim() !== '') {
+                toggleAuthModalMode('guest', roomParam.trim());
+            } else {
+                toggleAuthModalMode('google');
+            }
         }
 
         function hideGoogleAuthGate() {
@@ -11370,60 +11540,117 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                     btnContainer.innerHTML = '';
                     btnContainer.classList.add('hidden');
                 }
-                if (fallbackBtn) {
-                    fallbackBtn.classList.remove('hidden');
-                }
+                if (fallbackBtn) fallbackBtn.classList.remove('hidden');
                 return;
             }
 
-            if (window.google && window.google.accounts && window.google.accounts.id) {
-                try {
-                    window.google.accounts.id.initialize({
-                        client_id: googleClientId,
-                        callback: handleGoogleCredentialResponse,
-                        auto_select: false,
-                        cancel_on_tap_outside: false
-                    });
+            if (window.google && window.google.accounts) {
+                // 1. Initialize Google Identity Services (ID Token / One Tap & Render Button)
+                if (window.google.accounts.id) {
+                    try {
+                        window.google.accounts.id.initialize({
+                            client_id: googleClientId,
+                            callback: handleGoogleCredentialResponse,
+                            auto_select: false,
+                            cancel_on_tap_outside: false
+                        });
 
-                    if (btnContainer) {
-                        btnContainer.innerHTML = '';
-                        btnContainer.classList.remove('hidden');
-                        window.google.accounts.id.renderButton(
-                            btnContainer,
-                            { 
-                                theme: "outline", 
-                                size: "large", 
-                                width: 340, 
-                                text: "signin_with", 
-                                shape: "pill", 
-                                logo_alignment: "left" 
-                            }
-                        );
-                        if (fallbackBtn) fallbackBtn.classList.add('hidden');
+                        if (btnContainer) {
+                            btnContainer.innerHTML = '';
+                            btnContainer.classList.remove('hidden');
+                            window.google.accounts.id.renderButton(
+                                btnContainer,
+                                { 
+                                    theme: "outline", 
+                                    size: "large", 
+                                    width: 320, 
+                                    text: "signin_with", 
+                                    shape: "pill", 
+                                    logo_alignment: "left" 
+                                }
+                            );
+                            if (fallbackBtn) fallbackBtn.classList.add('hidden');
+                        }
+                    } catch (e) {
+                        console.warn('[Google Auth] GIS render error:', e);
+                        if (fallbackBtn) fallbackBtn.classList.remove('hidden');
                     }
-                } catch (e) {
-                    console.warn('[Google Auth] GIS render error:', e);
-                    if (fallbackBtn) fallbackBtn.classList.remove('hidden');
+                }
+
+                // 2. Initialize OAuth 2.0 Token Client for Direct Popup (Immune to Popup Blockers)
+                if (window.google.accounts.oauth2) {
+                    try {
+                        gisTokenClient = window.google.accounts.oauth2.initTokenClient({
+                            client_id: googleClientId,
+                            scope: 'openid email profile',
+                            callback: (tokenResp) => {
+                                if (tokenResp && tokenResp.access_token) {
+                                    fetchGoogleProfileWithAccessToken(tokenResp.access_token);
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('[GIS OAuth2] init error:', e);
+                    }
                 }
             } else {
                 setTimeout(initGoogleIdentityServices, 350);
             }
         }
 
+        // Direct synchronous popup trigger inside click event (100% compliant with browser popup security)
         function triggerGoogleSignIn() {
-            if (window.google && window.google.accounts && window.google.accounts.id && isGoogleClientIdValid(googleClientId)) {
+            // A. If official rendered button iframe is present, click it directly
+            const renderedBtn = document.querySelector('#google-gis-btn-container [role="button"]');
+            if (renderedBtn) {
+                renderedBtn.click();
+                return;
+            }
+
+            // B. Direct synchronous OAuth 2.0 popup call
+            if (gisTokenClient) {
+                gisTokenClient.requestAccessToken({ prompt: 'select_account' });
+                return;
+            }
+
+            // C. Fallback: prompt of google.accounts.id
+            if (window.google && window.google.accounts && window.google.accounts.id) {
                 try {
-                    window.google.accounts.id.prompt((notification) => {
-                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                            toggleManualGoogleInput(true);
-                        }
-                    });
+                    window.google.accounts.id.prompt();
                     return;
                 } catch (e) {
-                    console.warn('[Google Auth] Prompt error:', e);
+                    console.warn('[GIS Prompt] error:', e);
                 }
             }
-            toggleManualGoogleInput(true);
+        }
+
+        async function fetchGoogleProfileWithAccessToken(accessToken) {
+            try {
+                const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (resp.ok) {
+                    const profile = await resp.json();
+                    const googleUser = {
+                        sub: profile.sub || ('gg_' + Math.abs(hashCode(profile.email))),
+                        name: profile.name || profile.email.split('@')[0],
+                        email: profile.email.toLowerCase(),
+                        picture: profile.picture || generateGoogleAvatar(profile.name || profile.email),
+                        email_verified: Boolean(profile.email_verified),
+                        loginTime: Date.now(),
+                        provider: 'google'
+                    };
+                    applyGoogleUser(googleUser, false);
+                    hideGoogleAuthGate();
+                    claimCurrentRoomForUser(googleUser);
+                }
+            } catch (err) {
+                console.error('[Google OAuth2 Profile] Error:', err);
+            }
+        }
+
+        function triggerGoogleSignInToSave() {
+            triggerGoogleSignIn();
         }
 
         function toggleManualGoogleInput(forceOpen = false) {
@@ -11454,14 +11681,76 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             const guestUser = {
                 sub: 'guest_' + Math.abs(hashCode(name + '_' + Date.now())),
                 name: name,
-                email: 'khach@mathboard.local',
+                email: '',
                 picture: generateGuestAvatar(name),
                 provider: 'guest',
                 isGuest: true,
                 loginTime: Date.now()
             };
 
+            // Lưu phiên Khách DUY NHẤT vào sessionStorage (tắt tab tự xóa hoàn toàn)
+            try {
+                sessionStorage.setItem('mathboard_guest_user', JSON.stringify(guestUser));
+                localStorage.removeItem('mathboard_user');
+                localStorage.removeItem('padlet_google_user');
+            } catch (e) {}
+
             applyGoogleUser(guestUser, false);
+            hideGoogleAuthGate();
+
+            // Nếu chưa kết nối realtime thì kết nối ngay
+            if (typeof initCollabConnection === 'function' && (!collabSocket || collabSocket.readyState !== WebSocket.OPEN)) {
+                initCollabConnection();
+            }
+        }
+
+        function startEphemeralGuestSession() {
+            const tempRoomId = 'guest-' + Math.random().toString(36).substring(2, 9);
+            const guestUser = {
+                sub: 'guest_' + Math.abs(hashCode(tempRoomId + '_' + Date.now())),
+                name: 'Khách Ẩn Danh',
+                email: '',
+                picture: generateGuestAvatar('Khách'),
+                provider: 'guest',
+                isGuest: true,
+                loginTime: Date.now()
+            };
+
+            try {
+                sessionStorage.setItem('mathboard_guest_user', JSON.stringify(guestUser));
+                localStorage.removeItem('mathboard_user');
+                localStorage.removeItem('padlet_google_user');
+            } catch(e) {}
+
+            // Chuyển hướng tới bảng tạm thời dùng 1 lần
+            const url = new URL(window.location.href);
+            url.searchParams.set('room', tempRoomId);
+            window.location.href = url.toString();
+        }
+
+        function claimCurrentRoomForUser(user) {
+            if (!currentRoomId || !user || !user.email) return;
+            if (collabSocket && collabSocket.readyState === WebSocket.OPEN) {
+                collabSocket.send(JSON.stringify({
+                    type: 'room:claim',
+                    roomId: currentRoomId,
+                    userEmail: user.email,
+                    email: user.email,
+                    userName: user.name,
+                    userPicture: user.picture
+                }));
+            } else {
+                fetch('/api/room/claim', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        roomId: currentRoomId,
+                        userEmail: user.email,
+                        userName: user.name,
+                        userPicture: user.picture
+                    })
+                }).catch(err => console.warn('[Claim] Error:', err));
+            }
         }
 
         function generateGuestAvatar(name) {
@@ -11499,6 +11788,8 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
                 };
 
                 applyGoogleUser(googleUser, false);
+                hideGoogleAuthGate();
+                claimCurrentRoomForUser(googleUser);
             } catch (err) {
                 console.error('[Google Auth] JWT decode failed:', err);
                 showGoogleAuthError('Không thể xử lý phản hồi từ Google. Vui lòng thử lại!');
@@ -11509,20 +11800,70 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
             currentGoogleUser = user;
             currentUserId = user.sub;
             currentUserName = user.name;
-            currentUserEmail = user.email;
-            currentUserAvatar = user.picture;
+            currentUserEmail = user.email || '';
+            currentUserAvatar = user.picture || '';
 
             const isGuest = Boolean(user.provider === 'guest' || user.isGuest);
 
-            try {
-                localStorage.setItem('mathboard_user', JSON.stringify(user));
-                localStorage.setItem('padlet_user_name', user.name);
-                if (!isGuest) {
-                    localStorage.setItem('padlet_google_user', JSON.stringify(user));
-                } else {
+            if (isGuest) {
+                // CHẾ ĐỘ KHÁCH: Lưu DUY NHẤT vào sessionStorage, tuyệt đối KHÔNG lưu localStorage
+                try {
+                    sessionStorage.setItem('mathboard_guest_user', JSON.stringify(user));
+                    localStorage.removeItem('mathboard_user');
                     localStorage.removeItem('padlet_google_user');
+                } catch (e) {}
+            } else {
+                // TÀI KHOẢN GOOGLE: Lưu localStorage bền vững
+                try {
+                    localStorage.setItem('mathboard_user', JSON.stringify(user));
+                    localStorage.setItem('padlet_google_user', JSON.stringify(user));
+                    localStorage.setItem('padlet_user_name', user.name);
+                    sessionStorage.removeItem('mathboard_guest_user');
+                } catch (e) {}
+            }
+
+            // Cập nhật Banner Chế độ Khách trên Header
+            const guestBanner = document.getElementById('guest-mode-banner');
+            if (guestBanner) {
+                if (isGuest) {
+                    guestBanner.classList.remove('hidden');
+                    guestBanner.classList.add('flex');
+                } else {
+                    guestBanner.classList.add('hidden');
+                    guestBanner.classList.remove('flex');
                 }
-            } catch (e) {}
+            }
+
+            // Kiểm soát nút Quay về Dashboard: Khách chỉ thấy duy nhất phòng được mời
+            const btnBackHome = document.getElementById('btn-back-to-home');
+            const logoHome = document.getElementById('btn-logo-home');
+            if (isGuest) {
+                if (btnBackHome) {
+                    btnBackHome.href = "javascript:void(0)";
+                    btnBackHome.title = "Rời khỏi phòng học";
+                    btnBackHome.onclick = (e) => {
+                        e.preventDefault();
+                        if (confirm("Bạn có muốn rời khỏi phòng học này không? Phiên làm việc ẩn danh sẽ kết thúc.")) {
+                            sessionStorage.clear();
+                            window.location.href = 'padlet_ai_mathboard.html' + (currentRoomId ? '?room=' + currentRoomId : '');
+                        }
+                    };
+                }
+                if (logoHome) {
+                    logoHome.href = "javascript:void(0)";
+                    logoHome.onclick = (e) => e.preventDefault();
+                }
+            } else {
+                if (btnBackHome) {
+                    btnBackHome.href = "index.html";
+                    btnBackHome.title = "Quay lại Trang chủ Padlet";
+                    btnBackHome.onclick = null;
+                }
+                if (logoHome) {
+                    logoHome.href = "index.html";
+                    logoHome.onclick = null;
+                }
+            }
 
             // Cập nhật giao diện Navbar
             const btnProfile = document.getElementById('btn-google-user-profile');
@@ -11693,6 +12034,7 @@ TUYỆT ĐỐI CHỈ TRẢ VỀ JSON HỢP LỆ THEO SCHEMA TRÊN. KHÔNG GIẢI
 
         function handleGoogleSignOut() {
             try {
+                sessionStorage.removeItem('mathboard_guest_user');
                 localStorage.removeItem('mathboard_user');
                 localStorage.removeItem('padlet_google_user');
                 localStorage.removeItem('padlet_user_name');

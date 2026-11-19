@@ -631,6 +631,45 @@ async def api_delete_room(request):
     if room_id:
         db_delete_room(room_id)
         return web.json_response({"status": "ok", "roomId": room_id})
+
+async def api_claim_room(request):
+    """
+    POST /api/room/claim
+    Body: { "roomId": ..., "userEmail": ..., "userName": ..., "userPicture": ... }
+    Claims an ephemeral room for an authenticated Google user.
+    """
+    try:
+        data = await request.json()
+        room_id = (data.get('roomId') or '').strip()
+        user_email = (data.get('userEmail') or data.get('email') or '').strip().lower()
+        user_name = (data.get('userName') or '').strip()
+        user_picture = data.get('userPicture') or data.get('avatar') or ''
+
+        if not room_id or not user_email:
+            return web.json_response({'status': 'error', 'message': 'Missing roomId or userEmail'}, status=400)
+
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute('SELECT owner_email FROM rooms WHERE room_id = ?', (room_id,))
+        row = cur.fetchone()
+
+        claimed = False
+        if row and (not row[0] or row[0].strip() == ''):
+            cur.execute('''
+                UPDATE rooms 
+                SET owner_email = ?, owner_name = ?, owner_picture = ?, host_id = ?
+                WHERE room_id = ?
+            ''', (user_email, user_name, user_picture, user_email, room_id))
+            conn.commit()
+            claimed = True
+        elif row and row[0] and row[0].lower() == user_email:
+            claimed = True
+
+        conn.close()
+        return web.json_response({'status': 'ok', 'roomId': room_id, 'ownerEmail': user_email, 'claimed': claimed})
+    except Exception as e:
+        return web.json_response({'status': 'error', 'message': str(e)}, status=500)
+
     return web.json_response({"status": "error", "message": "Missing roomId"}, status=400)
 
 async def api_duplicate_room(request):
@@ -832,6 +871,40 @@ async def websocket_handler(request):
                             'users': get_room_users(current_room)
                         })
 
+                # 7b. Claim room when user logs in with Google from guest session
+                elif msg_type == 'room:claim':
+                    user_email = (data.get('userEmail') or data.get('email') or '').strip().lower()
+                    user_name = (data.get('userName') or '').strip()
+                    user_picture = data.get('userPicture') or data.get('avatar') or ''
+                    if user_email and current_room:
+                        conn = sqlite3.connect(DB_PATH)
+                        cur = conn.cursor()
+                        cur.execute('SELECT owner_email FROM rooms WHERE room_id = ?', (current_room,))
+                        row = cur.fetchone()
+                        if row and (not row[0] or row[0].strip() == ''):
+                            cur.execute('''
+                                UPDATE rooms 
+                                SET owner_email = ?, owner_name = ?, owner_picture = ?, host_id = ?
+                                WHERE room_id = ?
+                            ''', (user_email, user_name, user_picture, user_email, current_room))
+                            conn.commit()
+                        conn.close()
+
+                        client_info['email'] = user_email
+                        client_info['userName'] = user_name or client_info.get('userName')
+                        client_info['avatar'] = user_picture or client_info.get('avatar')
+                        client_info['isOwner'] = True
+                        client_info['role'] = 'host'
+
+                        await ws.send_str(json.dumps({
+                            'type': 'room:claimed',
+                            'roomId': current_room,
+                            'ownerEmail': user_email,
+                            'ownerName': user_name,
+                            'role': 'host',
+                            'isOwner': True
+                        }))
+
                 # 9. Rooms list for Google Docs Dashboard
                 elif msg_type == 'rooms:list':
                     req_email = data.get('email') or client_info.get('email')
@@ -955,6 +1028,7 @@ def create_app():
     app.router.add_get('/env.js', serve_env_js)
     app.router.add_get('/api/room', api_get_room)
     app.router.add_post('/api/room', api_save_room)
+    app.router.add_post('/api/room/claim', api_claim_room)
     app.router.add_get('/api/rooms', api_list_rooms)
     app.router.add_post('/api/room/rename', api_rename_room)
     app.router.add_post('/api/room/delete', api_delete_room)

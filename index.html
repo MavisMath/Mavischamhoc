@@ -559,6 +559,7 @@
                     if (btnContainer) {
                         btnContainer.innerHTML = '';
                         btnContainer.classList.remove('hidden');
+                        initGisIndexTokenClient();
                         window.google.accounts.id.renderButton(btnContainer, {
                             type: 'standard',
                             theme: 'outline',
@@ -626,21 +627,92 @@
             fetchRoomsFromApi();
         }
 
-        function triggerGoogleSignIn() {
-            if (window.google && window.google.accounts && window.google.accounts.id) {
+        let gisIndexTokenClient = null;
+
+        function initGisIndexTokenClient() {
+            if (window.google && window.google.accounts && window.google.accounts.oauth2) {
                 try {
-                    window.google.accounts.id.prompt((notification) => {
-                        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                            showGoogleAuthError('Cửa sổ đăng nhập Google bị chặn hoặc bị đóng. Vui lòng thử lại!');
+                    gisIndexTokenClient = window.google.accounts.oauth2.initTokenClient({
+                        client_id: getGoogleClientId(),
+                        scope: 'openid email profile',
+                        callback: (tokenResp) => {
+                            if (tokenResp && tokenResp.access_token) {
+                                fetchGoogleProfileIndex(tokenResp.access_token);
+                            }
                         }
                     });
                 } catch (e) {
-                    showGoogleAuthError('Không thể mở đăng nhập Google: ' + e.message);
+                    console.warn('[GIS Index OAuth2] init error:', e);
                 }
-            } else {
-                initGoogleIdentityServices();
-                showGoogleAuthError('Đang kết nối dịch vụ Google... Vui lòng thử lại sau giây lát!');
             }
+        }
+
+        async function fetchGoogleProfileIndex(accessToken) {
+            try {
+                const resp = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                if (resp.ok) {
+                    const profile = await resp.json();
+                    const googleUser = {
+                        sub: profile.sub || ('gg_' + Math.abs(hashCode(profile.email))),
+                        name: profile.name || profile.email.split('@')[0],
+                        email: profile.email.toLowerCase(),
+                        picture: profile.picture || generateAvatar(profile.name || profile.email),
+                        provider: 'google'
+                    };
+                    localStorage.setItem('mathboard_user', JSON.stringify(googleUser));
+                    localStorage.setItem('padlet_google_user', JSON.stringify(googleUser));
+                    localStorage.setItem('padlet_user_name', googleUser.name);
+                    sessionStorage.removeItem('mathboard_guest_user');
+                    currentUser = googleUser;
+                    updateUserUI();
+                    hideGoogleAuthGate();
+                    loadPadlets();
+                }
+            } catch (e) {
+                console.error('[Google Index Profile] error:', e);
+            }
+        }
+
+        // Direct synchronous popup trigger inside click handler (Immune to Popup Blockers)
+        function triggerGoogleSignIn() {
+            const renderedBtn = document.querySelector('#google-gis-btn-container [role="button"]');
+            if (renderedBtn) {
+                renderedBtn.click();
+                return;
+            }
+            if (gisIndexTokenClient) {
+                gisIndexTokenClient.requestAccessToken({ prompt: 'select_account' });
+                return;
+            }
+            if (window.google && window.google.accounts && window.google.accounts.id) {
+                try {
+                    window.google.accounts.id.prompt();
+                    return;
+                } catch (e) {
+                    console.warn('[Google Auth] Prompt error:', e);
+                }
+            }
+        }
+
+        function startGuestSessionFromIndex() {
+            const tempRoomId = 'guest-' + Math.random().toString(36).substring(2, 9);
+            const guestUser = {
+                sub: 'guest_' + Math.abs(hashCode(tempRoomId + '_' + Date.now())),
+                name: 'Khách Ẩn Danh',
+                email: '',
+                picture: '',
+                provider: 'guest',
+                isGuest: true,
+                loginTime: Date.now()
+            };
+            try {
+                sessionStorage.setItem('mathboard_guest_user', JSON.stringify(guestUser));
+                localStorage.removeItem('mathboard_user');
+                localStorage.removeItem('padlet_google_user');
+            } catch(e) {}
+            window.location.href = `padlet_ai_mathboard.html?room=${tempRoomId}`;
         }
 
         function openGoogleConfigModal() {
@@ -1419,6 +1491,29 @@
                     </svg>
                     <span>Đăng nhập với Google</span>
                 </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="relative flex py-1 items-center">
+                <div class="grow border-t border-slate-200"></div>
+                <span class="shrink mx-3 text-[10px] text-slate-400 font-bold tracking-widest uppercase">HOẶC</span>
+                <div class="grow border-t border-slate-200"></div>
+            </div>
+
+            <!-- GUEST MODE BUTTON -->
+            <div class="space-y-1.5">
+                <button 
+                    id="btn-index-guest-mode" 
+                    type="button" 
+                    onclick="startGuestSessionFromIndex()" 
+                    class="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 active:scale-98 text-slate-700 border border-slate-200/80 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2.5 cursor-pointer hover:border-slate-300"
+                >
+                    <i class="fa-solid fa-user-secret text-slate-500 text-sm"></i>
+                    <span>Tiếp tục với Chế độ Khách (Dùng 1 lần / Không lưu tài khoản)</span>
+                </button>
+                <p class="text-[11px] text-slate-400 text-center leading-normal">
+                    Mở bảng trắng tạm thời, tự động xóa phiên khi đóng trình duyệt.
+                </p>
             </div>
 
             <p class="text-[11px] text-slate-400 text-center leading-normal">
